@@ -199,7 +199,7 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
 # La correcta va SIEMPRE en Option A; el template la baraja visualmente cada vez.
 # ID fijo para que Anki reconozca el tipo de nota entre importaciones.
 _ANKI_MODEL = genanki.Model(
-    1607392322,
+    1607392323,
     "Daypo MCQ Interactive",
     fields=[
         {"name": "Question"},
@@ -234,16 +234,26 @@ function selectOption(letter) {
   document.getElementById("btn-" + letter).classList.add("selected");
   sessionStorage.setItem("ankiUserChoice", letter);
 }
-sessionStorage.removeItem("ankiUserChoice");
-(function shuffleOptions() {
+(function initOptions() {
   var box  = document.getElementById("options-box");
   var btns = Array.from(box.children);
-  // Fisher-Yates sobre el array primero, luego re-inserta en el orden barajado
-  for (var i = btns.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var tmp = btns[i]; btns[i] = btns[j]; btns[j] = tmp;
+  var saved = sessionStorage.getItem("ankiOrder");
+  if (saved) {
+    // Reverso (FrontSide re-ejecuta este script): restaurar orden, no barajar
+    saved.split(",").forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) box.appendChild(el);
+    });
+  } else {
+    // Nueva carta (anverso): barajar con Fisher-Yates y guardar orden
+    sessionStorage.removeItem("ankiUserChoice");
+    for (var i = btns.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = btns[i]; btns[i] = btns[j]; btns[j] = tmp;
+    }
+    sessionStorage.setItem("ankiOrder", btns.map(function(b) { return b.id; }).join(","));
+    btns.forEach(function(b) { box.appendChild(b); });
   }
-  btns.forEach(function(b) { box.appendChild(b); });
 })();
 </script>""",
             "afmt": """\
@@ -258,6 +268,8 @@ if (chosen && chosen !== correct) {
   var wBtn = document.getElementById("btn-" + chosen);
   if (wBtn) wBtn.classList.add("incorrect");
 }
+// Limpiar orden para que la siguiente carta baraje de nuevo
+sessionStorage.removeItem("ankiOrder");
 </script>""",
         }
     ],
@@ -470,11 +482,11 @@ enlaces_texto = st.text_area(
 if enlaces_texto.strip():
     enlaces_detectados = extraer_enlaces_daypo(enlaces_texto)
     if enlaces_detectados:
-        with st.expander(f"🔍 {len(enlaces_detectados)} enlace(s) detectado(s) — haz clic para ver"):
-            for e in enlaces_detectados:
-                st.code(e)
+        st.success(f"🔍 {len(enlaces_detectados)} enlace(s) detectado(s)")
+        for e in enlaces_detectados:
+            st.caption(e)
     else:
-        st.info("No se han detectado enlaces de Daypo en el texto introducido todavia.")
+        st.warning("No se han detectado enlaces de Daypo en el texto introducido todavia.")
 
 col1, col2 = st.columns([3, 1])
 with col1:

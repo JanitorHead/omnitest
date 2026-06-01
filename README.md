@@ -1,14 +1,24 @@
 # Daypo Extractor
 
-**Herramienta web local** para extraer preguntas, opciones, respuestas correctas e imagenes de cualquier test publico de [Daypo](https://www.daypo.com) y exportarlos automaticamente a documentos Word (.docx) organizados por carpetas.
-
-> Desarrollada con Python y Streamlit. Se ejecuta 100% en tu ordenador - tus datos no salen a ningun servidor externo.
+Extrae preguntas, opciones, respuestas correctas e imagenes de cualquier test publico de [Daypo](https://www.daypo.com) y exportalos a **Word**, **RemNote MCQ** o **Anki** con un solo clic.
 
 ---
 
-## Instalacion con un solo comando
+## Usar online (sin instalar nada)
 
-Abre la terminal de tu sistema, pega el comando correspondiente y pulsa Enter. El script instalara Python si no lo tienes, descargara la aplicacion y la abrira automaticamente en el navegador.
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://extractor-daypo.streamlit.app)
+
+La aplicacion esta desplegada gratuitamente en Streamlit Community Cloud. Abrela directamente en el navegador, sin instalar Python ni ninguna dependencia:
+
+**https://extractor-daypo.streamlit.app**
+
+> La app se ejecuta en la nube. Tu navegador envia los enlaces a Daypo y recibe los archivos; ningun dato tuyo se almacena.
+
+---
+
+## Instalar en local (opcional)
+
+Si prefieres ejecutarla en tu propio ordenador, usa el instalador de un solo comando para tu sistema.
 
 ### Windows (PowerShell)
 
@@ -21,13 +31,7 @@ irm https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/install.p
 > Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 > ```
 
-### macOS (Terminal)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/install.sh | bash
-```
-
-### Linux (terminal)
+### macOS / Linux (Terminal)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/install.sh | bash
@@ -39,60 +43,47 @@ curl -fsSL https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/in
 
 ## Que hace?
 
-Dado uno o varios enlaces de Daypo, la herramienta:
+Dado uno o varios enlaces de Daypo (o cualquier texto que los contenga), la herramienta:
 
-1. Se conecta a la API interna de Daypo para descargar los datos del test (sin necesidad de navegar manualmente por la web).
-2. Descifra automaticamente cual es la respuesta correcta de cada pregunta.
-3. Descarga las imagenes asociadas a cada pregunta desde los servidores de Daypo.
-4. Genera un documento Word por cada test, con el enunciado en negrita, la imagen incrustada y la opcion correcta marcada con **(correcta)**.
-5. Si se introducen varios enlaces, genera ademas un **documento Word unificado** con todos los tests seguidos.
-6. Empaqueta todo en un archivo ZIP listo para descargar con un solo clic.
+1. Detecta automaticamente los enlaces de Daypo en el texto pegado.
+2. Se conecta a la API interna de Daypo y descifra cual es la respuesta correcta de cada pregunta.
+3. Descarga las imagenes asociadas a cada pregunta.
+4. Genera tres tipos de exportacion con un solo clic:
 
----
-
-## Requisito unico: Python
-
-Los scripts de instalacion se encargan de todo automaticamente. Si prefieres instalar Python manualmente:
-
-- Descarga Python: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-- **Windows**: durante la instalacion, marca la casilla **"Add Python to PATH"**.
+| Exportacion | Descripcion |
+|---|---|
+| **ZIP Word** | Un `.docx` por test con enunciados en negrita, imagenes incrustadas y la opcion correcta marcada en verde. Incluye un documento unificado si hay varios tests. |
+| **ZIP RemNote MCQ** | Markdown con sintaxis `>>A)` listo para importar en RemNote (Import → Markdown). Preguntas en negrita, imagenes en linea. |
+| **Anki (.apkg)** | Mazo con tipo de nota MCQ interactivo: botones clicables, orden aleatorio en cada repaso, feedback verde/rojo al girar. Compatible con modo claro y oscuro. |
 
 ---
 
-## Uso de la aplicacion
+## Uso
 
-Tras ejecutar el comando de instalacion, se abrira automaticamente una pestana en tu navegador en `http://localhost:8501`.
-
-1. Pega tus enlaces de Daypo en el cuadro de texto (uno por linea).
-2. Haz clic en **Iniciar Extraccion**.
-3. Cuando termine, pulsa **Descargar ZIP con todos los tests**.
-
-> **Importante:** no cierres la ventana de terminal mientras usas la app. Es el servidor local que la mantiene activa.
+1. Pega tus enlaces de Daypo en el cuadro de texto. Puedes pegar los enlaces directamente, uno por linea, o cualquier texto que los contenga (correos, documentos, listas...).
+2. La app muestra en tiempo real cuantos enlaces ha detectado.
+3. Pulsa **Iniciar Extraccion**.
+4. Cuando termine, descarga el formato que necesites.
 
 ---
 
-## Estructura del ZIP resultante
+## Como importar en RemNote
 
-```
-Banco_de_Preguntas_Daypo.zip
-|
-+-- TODOS_LOS_TESTS_UNIDOS.docx        Solo aparece si introduces varios enlaces
-|
-+-- Tema 1 Trauma/
-|   +-- Tema 1 Trauma.docx
-|   +-- img_1073001_0.jpg
-|   +-- img_1073001_1.jpg
-|
-+-- Tema 2 Trauma/
-|   +-- Tema 2 Trauma.docx
-|   +-- img_1073002_0.jpg
-|
-+-- ...
-```
+1. Descarga **Daypo_RemNote_MCQ.zip**.
+2. RemNote → icono de ajustes → **Importar** → **Markdown** → sube el ZIP.
+3. Los tests apareceran como documentos con tarjetas MCQ e imagenes incrustadas.
+4. RemNote baraja el orden de las opciones al practicar.
+
+## Como importar en Anki
+
+1. Descarga **Daypo_Anki.apkg**.
+2. Abre Anki → **Archivo** → **Importar** → selecciona el archivo.
+3. Se crea el mazo **Daypo Extractor** con el tipo de nota **Daypo MCQ Interactive**.
+4. Anverso: enunciado + imagen + opciones en orden aleatorio. Reverso: respuesta correcta en verde, eleccion incorrecta en rojo.
 
 ---
 
-## Ejemplo de enlaces (Traumatologia 2025)
+## Ejemplo de enlaces
 
 Puedes pegar este bloque directamente en la aplicacion:
 
@@ -128,6 +119,7 @@ https://www.daypo.com/imagenes-trauma.html
 | Archivo | Descripcion |
 |---|---|
 | `daypo_extractor.py` | Aplicacion principal (Streamlit) |
+| `requirements.txt` | Dependencias para Streamlit Cloud y entornos virtuales |
 | `install.ps1` | Instalador one-liner para Windows (PowerShell) |
 | `install.sh` | Instalador one-liner para macOS y Linux (bash) |
 | `windows_launcher.bat` | Lanzador alternativo para Windows (requiere Python instalado) |
@@ -138,7 +130,7 @@ https://www.daypo.com/imagenes-trauma.html
 
 ## Notas tecnicas
 
-- La herramienta accede al endpoint `/asps/load.php` de Daypo, que es el mismo que usa el navegador internamente al cargar un test.
+- La herramienta accede al endpoint `/asps/load.php` de Daypo, el mismo que usa el navegador al cargar un test.
 - Las imagenes se descargan desde `https://www.daypo.com/testimages/{prefijo}/{id}_{num}.jpg`.
-- La respuesta correcta esta codificada en el XML del test mediante una mascara numerica (ej: `2111` indica que la primera opcion es la correcta).
+- La respuesta correcta esta codificada en el XML mediante una mascara numerica (ej: `2111` indica que la primera opcion es la correcta).
 - Uso responsable: esta herramienta es para uso personal y educativo. Respeta los Terminos de Uso de Daypo y los derechos de autor de los creadores de los tests.
