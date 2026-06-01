@@ -199,7 +199,7 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
 # La correcta va SIEMPRE en Option A; el template la baraja visualmente cada vez.
 # ID fijo para que Anki reconozca el tipo de nota entre importaciones.
 _ANKI_MODEL = genanki.Model(
-    1607392320,
+    1607392321,
     "Daypo MCQ Interactive",
     fields=[
         {"name": "Question"},
@@ -236,11 +236,14 @@ function selectOption(letter) {
 }
 sessionStorage.removeItem("ankiUserChoice");
 (function shuffleOptions() {
-  var box = document.getElementById("options-box");
+  var box  = document.getElementById("options-box");
   var btns = Array.from(box.children);
+  // Fisher-Yates sobre el array primero, luego re-inserta en el orden barajado
   for (var i = btns.length - 1; i > 0; i--) {
-    box.appendChild(btns[Math.floor(Math.random() * (i + 1))]);
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = btns[i]; btns[i] = btns[j]; btns[j] = tmp;
   }
+  btns.forEach(function(b) { box.appendChild(b); });
 })();
 </script>""",
             "afmt": """\
