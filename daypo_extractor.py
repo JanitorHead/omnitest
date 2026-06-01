@@ -643,8 +643,47 @@ def _texto_de_docx(datos: bytes) -> str:
     return "\n".join(lineas)
 
 
-def extraer_con_gemini_multi(api_key: str, texto: str = "",
-                              archivos: list | None = None) -> dict:
+_MODELOS_GEMINI = [
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-2.5-flash-preview-05-20",
+]
+
+_PROMPT_CORRECCION = """\
+Aqui tienes el JSON actual con las preguntas extraidas:
+{json_actual}
+
+El usuario pide esta correccion o ajuste:
+"{peticion}"
+
+Aplica los cambios y devuelve el JSON COMPLETO actualizado con la misma estructura exacta.
+SOLO devuelve JSON valido, sin ningun texto adicional.
+"""
+
+
+def aplicar_correccion_gemini(api_key: str, modelo: str,
+                               datos_actuales: dict, peticion: str) -> dict:
+    if not _GEMINI_OK:
+        raise RuntimeError("Instala google-generativeai")
+    genai.configure(api_key=api_key)
+    m = genai.GenerativeModel(modelo)
+    prompt = _PROMPT_CORRECCION.format(
+        json_actual=json.dumps(datos_actuales, ensure_ascii=False, indent=2),
+        peticion=peticion,
+    )
+    response = m.generate_content(prompt)
+    raw = response.text.strip()
+    for marker in ["```json", "```"]:
+        if marker in raw:
+            raw = raw.split(marker, 1)[1].split("```")[0].strip()
+            break
+    return json.loads(raw)
+
+
+def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
+                              texto: str = "", archivos: list | None = None) -> dict:
     """
     Procesa texto pegado + archivos (jpg/png/pdf/docx) en una sola llamada a Gemini.
     Los .docx se convierten a texto; PDFs e imágenes se envían como partes binarias.
@@ -653,7 +692,7 @@ def extraer_con_gemini_multi(api_key: str, texto: str = "",
         raise RuntimeError("Instala google-generativeai: pip install google-generativeai")
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-pro")
+    model = genai.GenerativeModel(modelo)
 
     partes: list = [_PROMPT_GEMINI]
     texto_acumulado = texto.strip()
@@ -750,8 +789,11 @@ st.markdown(
 )
 st.divider()
 
-if "resultado" not in st.session_state:
-    st.session_state["resultado"] = None
+for _k, _v in [("resultado", None), ("ia_estado", None),
+               ("ia_datos", None), ("ia_chat", []),
+               ("ia_api_key", ""), ("ia_modelo", "gemini-2.0-flash")]:
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
 
 # ── Pantalla de resultados (compartida por ambas pestañas) ─────────────────
 if st.session_state["resultado"] is not None:
@@ -952,79 +994,154 @@ with tab_daypo:
 
 # ── Pestaña 2: Gemini AI ──────────────────────────────────────────────────
 with tab_ia:
-    st.subheader("Importar preguntas con IA")
-    st.markdown(
-        "Combina texto pegado, fotos de exámenes, PDFs y documentos Word "
-        "en una sola llamada — Gemini extrae y unifica todas las preguntas."
-    )
 
-    if not _GEMINI_OK:
-        st.warning("Instala la dependencia: `pip install google-generativeai`")
+    # ── Vista de correcciones (tras extracción) ───────────────────────────
+    if st.session_state["ia_estado"] == "preview":
+        datos = st.session_state["ia_datos"]
+        api_key_chat = st.session_state["ia_api_key"]
+        modelo_chat = st.session_state["ia_modelo"]
+        n_q = len(datos.get("preguntas", []))
 
-    api_key = st.text_input(
-        "Clave API de Gemini:",
-        type="password",
-        help="Clave gratuita en [aistudio.google.com](https://aistudio.google.com)",
-    )
+        st.success(f"**{n_q} preguntas extraídas** — *{datos.get('titulo', '')}*")
 
-    texto_input = st.text_area(
-        "Texto (opcional) — pega preguntas directamente aquí:",
-        height=160,
-        placeholder="1. ¿Cuál es el tratamiento de elección?\n* Opción A  ← la correcta\nOpción B\nOpción C",
-    )
+        with st.expander("Ver preguntas extraídas", expanded=False):
+            for i, p in enumerate(datos.get("preguntas", []), 1):
+                st.markdown(f"**{i}. {p['enunciado']}**")
+                for inc in p.get("incorrectas", []):
+                    st.caption(f"  × {inc}")
+                st.caption(f"  ✓ **{p.get('correcta', '')}**")
+                if i < n_q:
+                    st.divider()
 
-    archivos = st.file_uploader(
-        "Archivos (opcional) — imágenes, PDFs o Word (puedes añadir varios a la vez):",
-        type=["jpg", "jpeg", "png", "webp", "pdf", "docx"],
-        accept_multiple_files=True,
-        help="Fotos de examen, escaneos en PDF, apuntes en Word... todo a la vez.",
-    )
+        st.markdown("---")
+        st.markdown("**Correcciones con IA** — describe cualquier ajuste y Gemini actualiza las preguntas:")
 
-    # Resumen del contenido cargado
-    hay_contenido = bool(texto_input.strip()) or bool(archivos)
-    if hay_contenido:
-        partes_info = []
-        if texto_input.strip():
-            partes_info.append(f"📝 Texto ({len(texto_input.strip())} caracteres)")
-        if archivos:
-            for f in archivos:
+        # Historial de chat
+        for msg in st.session_state["ia_chat"]:
+            with st.chat_message(msg["role"]):
+                st.write(msg["content"])
+
+        # Input de corrección
+        correccion = st.chat_input(
+            "Ej: 'La correcta de la pregunta 3 es la opción B' · 'Elimina la pregunta 7' · 'Cambia el título a...'"
+        )
+        if correccion:
+            st.session_state["ia_chat"].append({"role": "user", "content": correccion})
+            with st.spinner("Aplicando corrección..."):
+                try:
+                    nuevos_datos = aplicar_correccion_gemini(
+                        api_key_chat, modelo_chat, datos, correccion
+                    )
+                    st.session_state["ia_datos"] = nuevos_datos
+                    n_nuevo = len(nuevos_datos.get("preguntas", []))
+                    respuesta = f"Listo. Ahora hay **{n_nuevo} preguntas** en *{nuevos_datos.get('titulo', '')}*."
+                except json.JSONDecodeError:
+                    respuesta = "No pude aplicar la corrección (Gemini no devolvió JSON válido). Inténtalo de otra forma."
+                except Exception as e:
+                    respuesta = f"Error: {e}"
+            st.session_state["ia_chat"].append({"role": "assistant", "content": respuesta})
+            st.rerun()
+
+        st.markdown("---")
+        col_gen, col_volver = st.columns(2)
+        with col_gen:
+            if st.button("✅ Generar todos los archivos", type="primary", use_container_width=True):
+                todos_ia = gemini_a_tests(st.session_state["ia_datos"])
+                st.session_state["resultado"] = construir_resultado(todos_ia)
+                st.session_state["ia_estado"] = None
+                st.session_state["ia_chat"] = []
+                st.rerun()
+        with col_volver:
+            if st.button("↩️ Empezar de nuevo", use_container_width=True):
+                st.session_state["ia_estado"] = None
+                st.session_state["ia_datos"] = None
+                st.session_state["ia_chat"] = []
+                st.rerun()
+
+    # ── Formulario de entrada ─────────────────────────────────────────────
+    else:
+        st.subheader("Importar preguntas con IA")
+        st.markdown(
+            "Combina texto pegado, fotos de exámenes, PDFs y documentos Word "
+            "en una sola llamada — Gemini extrae y unifica todas las preguntas."
+        )
+
+        if not _GEMINI_OK:
+            st.warning("Instala la dependencia: `pip install google-generativeai`")
+
+        col_key, col_modelo = st.columns([2, 1])
+        with col_key:
+            api_key = st.text_input(
+                "Clave API de Gemini:",
+                type="password",
+                value=st.session_state["ia_api_key"],
+                help="Clave gratuita en [aistudio.google.com](https://aistudio.google.com)",
+            )
+        with col_modelo:
+            modelo_sel = st.selectbox(
+                "Modelo:",
+                options=_MODELOS_GEMINI,
+                index=_MODELOS_GEMINI.index(st.session_state["ia_modelo"])
+                      if st.session_state["ia_modelo"] in _MODELOS_GEMINI else 0,
+            )
+
+        texto_input = st.text_area(
+            "Texto (opcional) — pega preguntas directamente aquí:",
+            height=160,
+            placeholder="1. ¿Cuál es el tratamiento?\n* Opción A  ← correcta\nOpción B\nOpción C",
+        )
+
+        archivos = st.file_uploader(
+            "Archivos (opcional) — imágenes, PDFs o Word (varios a la vez):",
+            type=["jpg", "jpeg", "png", "webp", "pdf", "docx"],
+            accept_multiple_files=True,
+        )
+
+        hay_contenido = bool(texto_input.strip()) or bool(archivos)
+        if hay_contenido:
+            partes_info = []
+            if texto_input.strip():
+                partes_info.append(f"📝 Texto ({len(texto_input.strip())} caracteres)")
+            for f in (archivos or []):
                 ext = f.name.rsplit(".", 1)[-1].upper()
-                partes_info.append(f"{'🖼️' if ext in ('JPG','JPEG','PNG','WEBP') else '📄'} {f.name}")
-        st.info("**Contenido a procesar:**\n" + "\n".join(f"- {p}" for p in partes_info))
+                icono = "🖼️" if ext in ("JPG", "JPEG", "PNG", "WEBP") else "📄"
+                partes_info.append(f"{icono} {f.name}")
+            st.info("**Contenido a procesar:**\n" + "\n".join(f"- {p}" for p in partes_info))
 
-    procesar_ia = st.button(
-        "Procesar con Gemini",
-        type="primary",
-        use_container_width=True,
-        disabled=not (_GEMINI_OK and bool(api_key) and hay_contenido),
-    )
+        procesar_ia = st.button(
+            "Procesar con Gemini",
+            type="primary",
+            use_container_width=True,
+            disabled=not (_GEMINI_OK and bool(api_key) and hay_contenido),
+        )
 
-    if procesar_ia:
-        with st.spinner("Enviando a Gemini y extrayendo preguntas..."):
-            try:
-                datos = extraer_con_gemini_multi(api_key, texto=texto_input, archivos=archivos)
-                todos_ia = gemini_a_tests(datos)
-                if not todos_ia or not todos_ia[0]["preguntas"]:
-                    st.error("Gemini no encontró preguntas en el contenido proporcionado.")
-                else:
-                    n = sum(len(t["preguntas"]) for t in todos_ia)
-                    st.success(f"Se han extraído {n} preguntas. Generando archivos...")
-                    st.session_state["resultado"] = construir_resultado(todos_ia)
-                    st.rerun()
-            except json.JSONDecodeError:
-                st.error(
-                    "Gemini no devolvió JSON válido. "
-                    "Prueba con contenido más estructurado o divide el material en partes."
-                )
-            except Exception as e:
-                st.error(f"Error: {e}")
+        if procesar_ia:
+            with st.spinner("Enviando a Gemini y extrayendo preguntas..."):
+                try:
+                    datos = extraer_con_gemini_multi(
+                        api_key, modelo=modelo_sel,
+                        texto=texto_input, archivos=archivos,
+                    )
+                    if not datos.get("preguntas"):
+                        st.error("Gemini no encontró preguntas. Prueba con contenido más estructurado.")
+                    else:
+                        st.session_state["ia_estado"] = "preview"
+                        st.session_state["ia_datos"] = datos
+                        st.session_state["ia_api_key"] = api_key
+                        st.session_state["ia_modelo"] = modelo_sel
+                        st.session_state["ia_chat"] = []
+                        st.rerun()
+                except json.JSONDecodeError:
+                    st.error("Gemini no devolvió JSON válido. Prueba dividiendo el contenido.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
-    with st.expander("💡 Consejos para mejores resultados"):
-        st.markdown("""
-- **Todo a la vez:** puedes combinar texto pegado + fotos + PDF + Word en una sola operación.
-- **Imágenes:** fotos bien iluminadas y rectas. Varias páginas = varios archivos.
-- **PDFs:** se envían directamente a Gemini. Funciona tanto con PDFs de texto como escaneados.
-- **Word (.docx):** se extrae el texto automáticamente antes de enviarlo.
-- **Respuesta correcta:** Gemini detecta marcas de lápiz, asteriscos (*), letras circuladas, (C), subrayados, etc.
-- Si falla con mucho contenido, divide en partes más pequeñas y procesa por separado.
+        with st.expander("💡 Consejos"):
+            st.markdown("""
+- **Modelo:** `gemini-2.0-flash` es el más rápido y disponible en cuentas gratuitas.
+- **Todo a la vez:** combina texto + fotos + PDF + Word en una sola operación.
+- **PDFs escaneados:** se envían directamente a Gemini para OCR.
+- **Word (.docx):** el texto se extrae antes de enviarlo.
+- **Correcta:** Gemini detecta asteriscos (*), letras circuladas, (C), subrayados, marcas de lápiz, etc.
+- Si falla con mucho contenido, divide en partes y procesa por separado.
 """)
