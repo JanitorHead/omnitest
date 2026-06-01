@@ -149,7 +149,7 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
         lineas: list[str] = []
 
         for test in tests_datos:
-            lineas.append(f"# {test['titulo']}")
+            lineas.append(test["titulo"])  # titulo como Rem raiz, sin # de Markdown
             lineas.append("")
 
             for pregunta in test["preguntas"]:
@@ -173,10 +173,12 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
                     zf.writestr(f"images/{nombre}", pregunta["img_bytes"])
                     img_ref = f" ![](images/{nombre})"
 
-                lineas.append(f"{pregunta['enunciado']}{img_ref}>>A)")
-                lineas.append(f"\t{correcta}")
+                # Un tab de sangria bajo el titulo; espacio obligatorio antes de >>A)
+                lineas.append(f"\t{pregunta['enunciado']}{img_ref} >>A)")
+                # Dos tabs para las opciones (un nivel mas que la pregunta)
+                lineas.append(f"\t\t{correcta}")
                 for inc in incorrectas:
-                    lineas.append(f"\t{inc}")
+                    lineas.append(f"\t\t{inc}")
                 lineas.append("")
 
             lineas.append("")
