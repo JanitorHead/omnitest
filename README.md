@@ -1,80 +1,71 @@
 # Daypo Extractor
 
-**Herramienta web local** para extraer preguntas, opciones, respuestas correctas e imágenes de cualquier test público de [Daypo](https://www.daypo.com) y exportarlos automáticamente a documentos Word (.docx) organizados por carpetas.
+**Herramienta web local** para extraer preguntas, opciones, respuestas correctas e imagenes de cualquier test publico de [Daypo](https://www.daypo.com) y exportarlos automaticamente a documentos Word (.docx) organizados por carpetas.
 
-> Desarrollada con Python y Streamlit. Se ejecuta 100% en tu ordenador — tus datos no salen a ningún servidor externo.
+> Desarrollada con Python y Streamlit. Se ejecuta 100% en tu ordenador - tus datos no salen a ningun servidor externo.
 
 ---
 
-## ¿Qué hace?
+## Instalacion con un solo comando
+
+Abre la terminal de tu sistema, pega el comando correspondiente y pulsa Enter. El script instalara Python si no lo tienes, descargara la aplicacion y la abrira automaticamente en el navegador.
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/install.ps1 | iex
+```
+
+> Si PowerShell muestra un error de politica de ejecucion, ejecuta primero:
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+> ```
+
+### macOS (Terminal)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/install.sh | bash
+```
+
+### Linux (terminal)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/install.sh | bash
+```
+
+> El script detecta automaticamente tu distribucion (Debian/Ubuntu, Fedora/RHEL, Arch) e instala Python con el gestor de paquetes correspondiente.
+
+---
+
+## Que hace?
 
 Dado uno o varios enlaces de Daypo, la herramienta:
 
 1. Se conecta a la API interna de Daypo para descargar los datos del test (sin necesidad de navegar manualmente por la web).
-2. Descifra automáticamente cuál es la respuesta correcta de cada pregunta.
-3. Descarga las imágenes asociadas a cada pregunta desde los servidores de Daypo.
-4. Genera un documento Word por cada test, con el enunciado en negrita, la imagen incrustada y la opción correcta marcada con **(correcta)**.
-5. Si se introducen varios enlaces, genera además un **documento Word unificado** con todos los tests seguidos.
+2. Descifra automaticamente cual es la respuesta correcta de cada pregunta.
+3. Descarga las imagenes asociadas a cada pregunta desde los servidores de Daypo.
+4. Genera un documento Word por cada test, con el enunciado en negrita, la imagen incrustada y la opcion correcta marcada con **(correcta)**.
+5. Si se introducen varios enlaces, genera ademas un **documento Word unificado** con todos los tests seguidos.
 6. Empaqueta todo en un archivo ZIP listo para descargar con un solo clic.
 
 ---
 
-## Requisito único: Python
+## Requisito unico: Python
 
-Necesitas tener **Python 3.8 o superior** instalado en tu ordenador.  
-Las dependencias del proyecto (Streamlit, Requests, python-docx) se instalan automáticamente al usar los scripts de lanzamiento.
+Los scripts de instalacion se encargan de todo automaticamente. Si prefieres instalar Python manualmente:
 
 - Descarga Python: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-- **Windows**: durante la instalación, marca la casilla **"Add Python to PATH"**.
+- **Windows**: durante la instalacion, marca la casilla **"Add Python to PATH"**.
 
 ---
 
-## Instalación y uso
+## Uso de la aplicacion
 
-### Paso 1 — Descarga el proyecto
+Tras ejecutar el comando de instalacion, se abrira automaticamente una pestana en tu navegador en `http://localhost:8501`.
 
-Clona el repositorio o descárgalo como ZIP desde el botón verde **Code → Download ZIP**.
-
-```bash
-git clone https://github.com/JanitorHead/extractor-daypo.git
-cd extractor-daypo
-```
-
-### Paso 2 — Arranca la aplicación
-
-Elige el script correspondiente a tu sistema operativo y ejecútalo. **Instala las dependencias automáticamente y abre la app en el navegador.**
-
-#### Windows
-Haz **doble clic** en `windows_launcher.bat`
-
-O desde PowerShell / CMD:
-```bat
-windows_launcher.bat
-```
-
-#### macOS
-La primera vez necesitas dar permiso de ejecución al script. Abre una terminal en la carpeta del proyecto y ejecuta:
-```bash
-chmod +x macos_launcher.command
-```
-Después, **doble clic** en `macos_launcher.command` (o ejecútalo desde la terminal).
-
-Si macOS bloquea el archivo, ve a **Preferencias del Sistema → Privacidad y Seguridad → Permitir de todas formas**.
-
-#### Linux
-```bash
-chmod +x linux_launcher.sh
-./linux_launcher.sh
-```
-
----
-
-### Paso 3 — Usa la interfaz web
-
-1. Se abrirá automáticamente una pestaña en tu navegador en `http://localhost:8501`.
-2. Pega tus enlaces de Daypo en el cuadro de texto (uno por línea).
-3. Haz clic en **Iniciar Extracción**.
-4. Cuando termine, pulsa **Descargar todos los Tests (ZIP)**.
+1. Pega tus enlaces de Daypo en el cuadro de texto (uno por linea).
+2. Haz clic en **Iniciar Extraccion**.
+3. Cuando termine, pulsa **Descargar ZIP con todos los tests**.
 
 > **Importante:** no cierres la ventana de terminal mientras usas la app. Es el servidor local que la mantiene activa.
 
@@ -84,26 +75,26 @@ chmod +x linux_launcher.sh
 
 ```
 Banco_de_Preguntas_Daypo.zip
-│
-├── DOCUMENTO_TODOS_LOS_TEMAS_UNIDOS.docx   ← Solo aparece si introduces varios enlaces
-│
-├── Tema 1 Trauma/
-│   ├── Tema 1 Trauma.docx
-│   ├── img_1073001_0.jpg
-│   └── img_1073001_1.jpg
-│
-├── Tema 2 Trauma/
-│   ├── Tema 2 Trauma.docx
-│   └── img_1073002_0.jpg
-│
-└── ...
+|
++-- TODOS_LOS_TESTS_UNIDOS.docx        Solo aparece si introduces varios enlaces
+|
++-- Tema 1 Trauma/
+|   +-- Tema 1 Trauma.docx
+|   +-- img_1073001_0.jpg
+|   +-- img_1073001_1.jpg
+|
++-- Tema 2 Trauma/
+|   +-- Tema 2 Trauma.docx
+|   +-- img_1073002_0.jpg
+|
++-- ...
 ```
 
 ---
 
-## Ejemplo de enlaces (Traumatología 2025)
+## Ejemplo de enlaces (Traumatologia 2025)
 
-Puedes pegar este bloque directamente en la aplicación:
+Puedes pegar este bloque directamente en la aplicacion:
 
 ```
 https://www.daypo.com/tema-1-trauma.html
@@ -134,18 +125,20 @@ https://www.daypo.com/imagenes-trauma.html
 
 ## Archivos del proyecto
 
-| Archivo | Descripción |
+| Archivo | Descripcion |
 |---|---|
-| `daypo_extractor.py` | Aplicación principal (Streamlit) |
-| `windows_launcher.bat` | Script de arranque para Windows |
-| `macos_launcher.command` | Script de arranque para macOS |
-| `linux_launcher.sh` | Script de arranque para Linux |
+| `daypo_extractor.py` | Aplicacion principal (Streamlit) |
+| `install.ps1` | Instalador one-liner para Windows (PowerShell) |
+| `install.sh` | Instalador one-liner para macOS y Linux (bash) |
+| `windows_launcher.bat` | Lanzador alternativo para Windows (requiere Python instalado) |
+| `macos_launcher.command` | Lanzador alternativo para macOS (requiere Python instalado) |
+| `linux_launcher.sh` | Lanzador alternativo para Linux (requiere Python instalado) |
 
 ---
 
-## Notas técnicas
+## Notas tecnicas
 
-- La herramienta accede al endpoint `/asps/load.php` de Daypo, que es el mismo que usa el navegador internamente al cargar un test. No se realiza ningún tipo de bypass ni automatización del navegador.
-- Las imágenes se descargan desde `https://www.daypo.com/testimages/{prefijo}/{id}_{num}.jpg`.
-- La respuesta correcta está codificada en el XML del test mediante una máscara numérica (ej: `2111` indica que la primera opción es la correcta).
-- Uso responsable: esta herramienta es para uso personal y educativo. Respeta los Términos de Uso de Daypo y los derechos de autor de los creadores de los tests.
+- La herramienta accede al endpoint `/asps/load.php` de Daypo, que es el mismo que usa el navegador internamente al cargar un test.
+- Las imagenes se descargan desde `https://www.daypo.com/testimages/{prefijo}/{id}_{num}.jpg`.
+- La respuesta correcta esta codificada en el XML del test mediante una mascara numerica (ej: `2111` indica que la primera opcion es la correcta).
+- Uso responsable: esta herramienta es para uso personal y educativo. Respeta los Terminos de Uso de Daypo y los derechos de autor de los creadores de los tests.
