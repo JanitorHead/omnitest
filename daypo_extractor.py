@@ -13,12 +13,7 @@ from docx.shared import Inches, Pt, RGBColor
 import genanki
 from fpdf import FPDF
 
-try:
-    from google import genai as _genai_mod
-    from google.genai import types as _genai_types
-    _GEMINI_OK = True
-except ImportError:
-    _GEMINI_OK = False
+_GEMINI_OK = True  # Solo necesita 'requests', ya instalado
 
 st.set_page_config(
     page_title="Daypo Extractor",
@@ -664,21 +659,42 @@ SOLO devuelve JSON valido, sin ningun texto adicional.
 """
 
 
-def _gemini_client(api_key: str):
-    if not _GEMINI_OK:
-        raise RuntimeError("Instala google-genai: pip install google-genai")
-    return _genai_mod.Client(api_key=api_key)
+def _gemini_call(api_key: str, modelo: str, partes: list) -> str:
+    """
+    Llama directamente al REST API de Gemini v1 sin ningun SDK de Google.
+    partes: lista de str (texto) o dict {"mime_type": str, "data": bytes}
+    """
+    url = (
+        f"https://generativelanguage.googleapis.com/v1/models"
+        f"/{modelo}:generateContent"
+    )
+    headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
+
+    parts_json = []
+    for parte in partes:
+        if isinstance(parte, str):
+            parts_json.append({"text": parte})
+        elif isinstance(parte, dict) and "data" in parte:
+            parts_json.append({
+                "inlineData": {
+                    "mimeType": parte["mime_type"],
+                    "data": base64.b64encode(parte["data"]).decode("utf-8"),
+                }
+            })
+
+    body = {"contents": [{"parts": parts_json}]}
+    resp = requests.post(url, headers=headers, json=body, timeout=180)
+    resp.raise_for_status()
+    return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def aplicar_correccion_gemini(api_key: str, modelo: str,
                                datos_actuales: dict, peticion: str) -> dict:
-    client = _gemini_client(api_key)
     prompt = _PROMPT_CORRECCION.format(
         json_actual=json.dumps(datos_actuales, ensure_ascii=False, indent=2),
         peticion=peticion,
     )
-    response = client.models.generate_content(model=modelo, contents=prompt)
-    raw = response.text.strip()
+    raw = _gemini_call(api_key, modelo, [prompt]).strip()
     for marker in ["```json", "```"]:
         if marker in raw:
             raw = raw.split(marker, 1)[1].split("```")[0].strip()
@@ -689,13 +705,11 @@ def aplicar_correccion_gemini(api_key: str, modelo: str,
 def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
                               texto: str = "", archivos: list | None = None) -> dict:
     """
-    Procesa texto pegado + archivos (jpg/png/pdf/docx) en una sola llamada.
-    Usa el nuevo SDK google-genai (v1 API). Los .docx se convierten a texto;
-    PDFs e imágenes se envían como partes binarias nativas.
+    Llama directamente al REST API de Gemini v1 (sin SDK de Google).
+    Los .docx se convierten a texto; PDFs e imágenes se envían como
+    inline_data en base64 — formato nativo de la API REST.
     """
-    client = _gemini_client(api_key)
-
-    contenidos: list = [_PROMPT_GEMINI]
+    partes: list = [_PROMPT_GEMINI]
     texto_acumulado = texto.strip()
 
     for archivo in (archivos or []):
@@ -708,23 +722,18 @@ def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
             except Exception:
                 pass
         elif ext == "pdf":
-            contenidos.append(
-                _genai_types.Part.from_bytes(data=datos, mime_type="application/pdf")
-            )
+            partes.append({"mime_type": "application/pdf", "data": datos})
         elif ext in ("jpg", "jpeg", "png", "webp"):
             mime = archivo.type or f"image/{ext.replace('jpg', 'jpeg')}"
-            contenidos.append(
-                _genai_types.Part.from_bytes(data=datos, mime_type=mime)
-            )
+            partes.append({"mime_type": mime, "data": datos})
 
     if texto_acumulado:
-        contenidos.append(f"\n\n--- TEXTO / DOCUMENTOS ---\n{texto_acumulado}")
+        partes.append(f"\n\n--- TEXTO / DOCUMENTOS ---\n{texto_acumulado}")
 
-    if len(contenidos) == 1:
+    if len(partes) == 1:
         raise ValueError("No hay contenido para procesar.")
 
-    response = client.models.generate_content(model=modelo, contents=contenidos)
-    raw = response.text.strip()
+    raw = _gemini_call(api_key, modelo, partes).strip()
     for marker in ["```json", "```"]:
         if marker in raw:
             raw = raw.split(marker, 1)[1].split("```")[0].strip()
@@ -1070,9 +1079,6 @@ with tab_ia:
             "Combina texto pegado, fotos de exámenes, PDFs y documentos Word "
             "en una sola llamada — Gemini extrae y unifica todas las preguntas."
         )
-
-        if not _GEMINI_OK:
-            st.warning("Instala la dependencia: `pip install google-generativeai`")
 
         col_key, col_modelo = st.columns([2, 1])
         with col_key:
