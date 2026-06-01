@@ -3,9 +3,13 @@ import requests
 import re
 import xml.etree.ElementTree as ET
 import zipfile
+import tempfile
+import os
+import random
 from io import BytesIO
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
+import genanki
 
 st.set_page_config(
     page_title="Daypo Extractor",
@@ -141,11 +145,11 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
     Genera un ZIP con un .md en sintaxis RemNote MCQ y una carpeta images/.
 
     Formato identico al que RemNote exporta internamente:
-      - Pregunta >>A)        <- item de lista con el marcador MCQ
-          - Opcion correcta  <- subitems con 4 espacios + guion
+      - **Pregunta en negrita     <- abre negrita, sin cerrar
+      **![](images/img.jpg) >>A)  <- cierra negrita, imagen, marcador MCQ
+          - Opcion correcta       <- subitems con 4 espacios + guion
           - Opcion incorrecta
     Las imagenes se referencian por ruta relativa dentro del ZIP.
-    Importar en RemNote: ajustes -> Importar -> Markdown -> subir el ZIP.
     """
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -169,14 +173,16 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
                 if correcta is None:
                     continue
 
-                img_ref = ""
                 if pregunta.get("img_bytes") and pregunta.get("img_nombre"):
                     nombre = pregunta["img_nombre"]
                     zf.writestr(f"images/{nombre}", pregunta["img_bytes"])
-                    img_ref = f" ![](images/{nombre})"
+                    # Enunciado en negrita en linea 1, imagen en linea 2 + marcador MCQ
+                    # Replica exacta del formato que RemNote usa al exportar sus MCQ
+                    lineas.append(f"- **{pregunta['enunciado']}")
+                    lineas.append(f"**![](images/{nombre}) >>A)")
+                else:
+                    lineas.append(f"- **{pregunta['enunciado']}** >>A)")
 
-                # Mismo formato que usa RemNote al exportar sus propias MCQ
-                lineas.append(f"- {pregunta['enunciado']}{img_ref} >>A)")
                 lineas.append(f"    - {correcta}")
                 for inc in incorrectas:
                     lineas.append(f"    - {inc}")
@@ -190,6 +196,125 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
     return buf.getvalue()
 
 
+# Modelo Anki reutilizable (ID fijo para que Anki lo reconozca entre sesiones)
+_ANKI_MODEL = genanki.Model(
+    1607392319,
+    "Daypo MCQ",
+    fields=[
+        {"name": "Question"},
+        {"name": "Image"},
+        {"name": "Options"},
+        {"name": "CorrectLetter"},
+        {"name": "Correct"},
+    ],
+    templates=[
+        {
+            "name": "MCQ Card",
+            "qfmt": """\
+<div class="question">{{Question}}</div>
+{{Image}}
+<div class="options">{{Options}}</div>""",
+            "afmt": """\
+<div class="question">{{Question}}</div>
+{{Image}}
+<div class="options">{{Options}}</div>
+<hr id="answer">
+<div class="answer">&#10003; {{CorrectLetter}}) <b>{{Correct}}</b></div>""",
+        }
+    ],
+    css="""\
+.card {
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    text-align: left;
+    color: #1a1a1a;
+    background: #ffffff;
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+.question { font-size: 20px; font-weight: bold; margin-bottom: 14px; }
+.image { margin: 12px 0; }
+.image img { max-width: 100%; max-height: 280px; border-radius: 6px; }
+.options { line-height: 2.2; }
+.answer { color: #1a7328; font-size: 20px; margin-top: 12px; }
+""",
+)
+
+
+def generar_apkg_anki(tests_datos: list[dict]) -> bytes:
+    """
+    Genera un archivo .apkg de Anki con nota MCQ custom.
+
+    Anverso: enunciado + imagen + opciones A/B/C/D mezcladas.
+    Reverso: igual que el anverso con la respuesta correcta marcada en verde.
+    Las opciones se mezclan de forma determinista por pregunta para que la
+    respuesta correcta no sea siempre la misma letra entre sesiones de repaso.
+    """
+    deck = genanki.Deck(2059400110, "Daypo Extractor")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        media_files: list[str] = []
+
+        for test in tests_datos:
+            for pregunta in test["preguntas"]:
+                correcta = None
+                incorrectas: list[str] = []
+                for texto, es_correcta in pregunta["opciones"]:
+                    if not texto:
+                        continue
+                    if es_correcta:
+                        correcta = texto
+                    else:
+                        incorrectas.append(texto)
+
+                if correcta is None:
+                    continue
+
+                # Mezclar opciones de forma determinista segun el enunciado
+                todas = [correcta] + incorrectas
+                rng = random.Random(hash(pregunta["enunciado"]) & 0xFFFFFFFF)
+                rng.shuffle(todas)
+                correct_idx = todas.index(correcta)
+                letras = "ABCDEFGH"
+                correct_letter = letras[correct_idx]
+
+                options_html = "<br>".join(
+                    f"{letras[i]}) {opt}" for i, opt in enumerate(todas)
+                )
+
+                image_html = ""
+                if pregunta.get("img_bytes") and pregunta.get("img_nombre"):
+                    nombre = pregunta["img_nombre"]
+                    img_path = os.path.join(tmpdir, nombre)
+                    with open(img_path, "wb") as f:
+                        f.write(pregunta["img_bytes"])
+                    media_files.append(img_path)
+                    image_html = f'<div class="image"><img src="{nombre}"></div>'
+
+                note = genanki.Note(
+                    model=_ANKI_MODEL,
+                    fields=[
+                        pregunta["enunciado"],
+                        image_html,
+                        options_html,
+                        correct_letter,
+                        correcta,
+                    ],
+                    guid=genanki.guid_for(test["titulo"], pregunta["enunciado"]),
+                )
+                deck.add_note(note)
+
+        package = genanki.Package(deck)
+        package.media_files = media_files
+
+        apkg_path = os.path.join(tmpdir, "daypo.apkg")
+        package.write_to_file(apkg_path)
+
+        with open(apkg_path, "rb") as f:
+            return f.read()
+
+
 # ---------------------------------------------------------------------------
 # Interfaz de usuario (Streamlit)
 # ---------------------------------------------------------------------------
@@ -197,17 +322,16 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
 st.title("📝 Daypo Extractor")
 st.markdown(
     "Extrae preguntas, imagenes y respuestas correctas de cualquier test de "
-    "[Daypo](https://www.daypo.com) y exportalos a documentos Word o en "
-    "formato [RemNote](https://www.remnote.com) MCQ."
+    "[Daypo](https://www.daypo.com) y exportalos a Word, "
+    "[RemNote](https://www.remnote.com) MCQ o [Anki](https://apps.ankiweb.net)."
 )
 
 st.divider()
 
-# Resultados persistentes: sobreviven a la re-ejecucion que disparan los botones de descarga
 if "resultado" not in st.session_state:
     st.session_state["resultado"] = None
 
-# Pantalla de resultados: se muestra mientras haya datos en session_state
+# Pantalla de resultados
 if st.session_state["resultado"] is not None:
     res = st.session_state["resultado"]
 
@@ -219,11 +343,11 @@ if st.session_state["resultado"] is not None:
 
     st.success(f"Procesados {res['tests_ok']} test(s) correctamente. Archivos listos para descargar.")
 
-    col_word, col_remnote = st.columns(2)
+    col_word, col_remnote, col_anki = st.columns(3)
 
     with col_word:
         st.download_button(
-            label="⬇️ Descargar ZIP (Word)",
+            label="⬇️ Descargar ZIP Word",
             data=res["zip_word"],
             file_name="Banco_de_Preguntas_Daypo.zip",
             mime="application/zip",
@@ -232,22 +356,41 @@ if st.session_state["resultado"] is not None:
 
     with col_remnote:
         st.download_button(
-            label="🧠 Descargar ZIP RemNote MCQ",
+            label="🧠 Descargar RemNote MCQ",
             data=res["zip_remnote"],
             file_name="Daypo_RemNote_MCQ.zip",
             mime="application/zip",
             use_container_width=True,
-            help="Importa este ZIP en RemNote: ajustes → Importar → Markdown.",
+            help="Importa el ZIP en RemNote: ajustes → Importar → Markdown.",
+        )
+
+    with col_anki:
+        st.download_button(
+            label="🃏 Descargar Anki (.apkg)",
+            data=res["apkg_anki"],
+            file_name="Daypo_Anki.apkg",
+            mime="application/octet-stream",
+            use_container_width=True,
+            help="Abre Anki → Archivo → Importar → selecciona el .apkg.",
         )
 
     with st.expander("ℹ️ Como importar en RemNote"):
         st.markdown(
             """
-1. Descarga el archivo **Daypo_RemNote_MCQ.zip**.
-2. Abre RemNote → icono de ajustes → **Importar** → **Markdown**.
-3. Sube el ZIP directamente (no hace falta descomprimirlo).
-4. Los tests apareceran como documentos con tarjetas MCQ con sus imagenes.
-5. RemNote baraja el orden de las opciones al practicar.
+1. Descarga **Daypo_RemNote_MCQ.zip**.
+2. RemNote → icono de ajustes → **Importar** → **Markdown** → sube el ZIP.
+3. Las preguntas apareceran con imagen (si la tienen) y como tarjetas MCQ.
+4. RemNote baraja el orden de las opciones al practicar.
+            """
+        )
+
+    with st.expander("ℹ️ Como importar en Anki"):
+        st.markdown(
+            """
+1. Descarga **Daypo_Anki.apkg**.
+2. Abre Anki → **Archivo** → **Importar** → selecciona el archivo.
+3. Se crea el mazo **Daypo Extractor** con el tipo de nota MCQ custom.
+4. Anverso: enunciado + imagen + opciones mezcladas. Reverso: respuesta correcta en verde.
             """
         )
 
@@ -258,7 +401,7 @@ if st.session_state["resultado"] is not None:
 
     st.stop()
 
-# Pantalla de entrada: solo visible cuando no hay resultado activo
+# Pantalla de entrada
 enlaces_texto = st.text_area(
     "Pega aqui tus enlaces de Daypo (o cualquier texto que los contenga):",
     height=220,
@@ -270,7 +413,6 @@ enlaces_texto = st.text_area(
     ),
 )
 
-# Previsualizar en tiempo real los enlaces detectados
 if enlaces_texto.strip():
     enlaces_detectados = extraer_enlaces_daypo(enlaces_texto)
     if enlaces_detectados:
@@ -380,6 +522,7 @@ if iniciar:
     st.session_state["resultado"] = {
         "zip_word": memoria_zip.getvalue(),
         "zip_remnote": generar_zip_remnote(todos_los_tests),
+        "apkg_anki": generar_apkg_anki(todos_los_tests),
         "tests_ok": len(enlaces) - len(errores),
         "errores": errores,
     }

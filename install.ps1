@@ -56,7 +56,7 @@ Write-Host "      OK - Archivos descargados." -ForegroundColor Green
 # 3. Dependencias
 Write-Host ""
 Write-Host "[3/3] Instalando dependencias de Python..." -ForegroundColor Yellow
-try { python -m pip install streamlit requests python-docx -q --disable-pip-version-check }
+try { python -m pip install streamlit requests python-docx genanki -q --disable-pip-version-check }
 catch { Write-Host "  [ERROR] Fallo al instalar dependencias." -ForegroundColor Red; Read-Host "Pulsa Enter para salir"; exit 1 }
 Write-Host "      OK - Dependencias listas." -ForegroundColor Green
 
