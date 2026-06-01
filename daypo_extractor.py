@@ -610,7 +610,9 @@ def generar_html_quiz(tests_datos: list[dict], nombre: str) -> bytes:
 # ---------------------------------------------------------------------------
 
 _PROMPT_GEMINI = """
-Extrae TODAS las preguntas de opcion multiple del texto o imagen proporcionados.
+Extrae TODAS las preguntas de opcion multiple de TODO el contenido proporcionado \
+(puede haber texto, imagenes, PDFs y documentos combinados).
+Combina todas las fuentes en un unico conjunto de preguntas.
 Devuelve SOLO JSON valido, sin ningun texto adicional, con esta estructura exacta:
 {
   "titulo": "titulo descriptivo del examen o test",
@@ -624,28 +626,60 @@ Devuelve SOLO JSON valido, sin ningun texto adicional, con esta estructura exact
 }
 Reglas:
 - Limpia artefactos OCR, mal encoding y caracteres extraños
-- La opcion correcta puede estar marcada con asterisco (*), letra circulada, subrayado, (C), flecha, o cualquier otra marca. Identifícala y elimina la marca del texto
+- La opcion correcta puede estar marcada con asterisco (*), letra circulada, subrayado, (C), flecha, o cualquier marca. Identifícala y elimina la marca del texto
 - Si no puedes identificar la correcta con seguridad, omite esa pregunta
-- Extrae absolutamente TODAS las preguntas, sin excepcion
+- Extrae absolutamente TODAS las preguntas de TODAS las fuentes, sin excepcion
 - El titulo debe ser descriptivo (ej: "Traumatologia Tema 1", "Bioquimica Parcial 2024")
 """
 
 
-def extraer_con_gemini(api_key: str, texto: str | None = None,
-                        imagen_bytes: bytes | None = None,
-                        mime_type: str = "image/jpeg") -> dict:
+def _texto_de_docx(datos: bytes) -> str:
+    """Extrae texto plano de un .docx."""
+    doc = Document(BytesIO(datos))
+    lineas = [p.text for p in doc.paragraphs if p.text.strip()]
+    for tabla in doc.tables:
+        for fila in tabla.rows:
+            lineas.append("  |  ".join(c.text for c in fila.cells if c.text.strip()))
+    return "\n".join(lineas)
+
+
+def extraer_con_gemini_multi(api_key: str, texto: str = "",
+                              archivos: list | None = None) -> dict:
+    """
+    Procesa texto pegado + archivos (jpg/png/pdf/docx) en una sola llamada a Gemini.
+    Los .docx se convierten a texto; PDFs e imágenes se envían como partes binarias.
+    """
     if not _GEMINI_OK:
         raise RuntimeError("Instala google-generativeai: pip install google-generativeai")
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("gemini-1.5-pro")
 
-    if imagen_bytes:
-        part = {"mime_type": mime_type, "data": imagen_bytes}
-        response = model.generate_content([_PROMPT_GEMINI, part])
-    else:
-        response = model.generate_content(_PROMPT_GEMINI + "\n\n---\n\n" + (texto or ""))
+    partes: list = [_PROMPT_GEMINI]
+    texto_acumulado = texto.strip()
 
+    for archivo in (archivos or []):
+        datos = archivo.read()
+        ext = archivo.name.rsplit(".", 1)[-1].lower()
+        if ext in ("docx", "doc"):
+            try:
+                texto_doc = _texto_de_docx(datos)
+                texto_acumulado += f"\n\n--- {archivo.name} ---\n{texto_doc}"
+            except Exception:
+                pass  # si falla la extraccion, se ignora silenciosamente
+        elif ext == "pdf":
+            partes.append({"mime_type": "application/pdf", "data": datos})
+        elif ext in ("jpg", "jpeg", "png", "webp"):
+            mime = archivo.type or f"image/{ext.replace('jpg', 'jpeg')}"
+            partes.append({"mime_type": mime, "data": datos})
+
+    if texto_acumulado:
+        partes.append(f"\n\n--- TEXTO / DOCUMENTOS ---\n{texto_acumulado}")
+
+    if len(partes) == 1:
+        raise ValueError("No hay contenido para procesar.")
+
+    response = model.generate_content(partes)
     raw = response.text.strip()
     for marker in ["```json", "```"]:
         if marker in raw:
@@ -920,8 +954,8 @@ with tab_daypo:
 with tab_ia:
     st.subheader("Importar preguntas con IA")
     st.markdown(
-        "Pega preguntas mal formateadas o sube fotos de examenes. "
-        "Gemini extrae las preguntas y la respuesta correcta automaticamente."
+        "Combina texto pegado, fotos de exámenes, PDFs y documentos Word "
+        "en una sola llamada — Gemini extrae y unifica todas las preguntas."
     )
 
     if not _GEMINI_OK:
@@ -930,69 +964,67 @@ with tab_ia:
     api_key = st.text_input(
         "Clave API de Gemini:",
         type="password",
-        help="Obtén tu clave gratuita en [aistudio.google.com](https://aistudio.google.com)",
+        help="Clave gratuita en [aistudio.google.com](https://aistudio.google.com)",
     )
 
-    modo = st.radio("Tipo de entrada:", ["📝 Texto", "🖼️ Imagen / Foto"], horizontal=True)
+    texto_input = st.text_area(
+        "Texto (opcional) — pega preguntas directamente aquí:",
+        height=160,
+        placeholder="1. ¿Cuál es el tratamiento de elección?\n* Opción A  ← la correcta\nOpción B\nOpción C",
+    )
 
-    if modo == "📝 Texto":
-        texto_input = st.text_area(
-            "Pega aqui las preguntas (pueden estar mal formateadas):",
-            height=300,
-            placeholder="1. ¿Cuál es el tratamiento de elección?\n* Opción A\nOpción B\nOpción C\n\n2. ..."
-        )
-        procesar_ia = st.button("Procesar con Gemini", type="primary",
-                                disabled=not (_GEMINI_OK and bool(api_key) and bool(texto_input)))
+    archivos = st.file_uploader(
+        "Archivos (opcional) — imágenes, PDFs o Word (puedes añadir varios a la vez):",
+        type=["jpg", "jpeg", "png", "webp", "pdf", "docx"],
+        accept_multiple_files=True,
+        help="Fotos de examen, escaneos en PDF, apuntes en Word... todo a la vez.",
+    )
 
-        if procesar_ia:
-            with st.spinner("Procesando con Gemini..."):
-                try:
-                    datos = extraer_con_gemini(api_key, texto=texto_input)
-                    todos_ia = gemini_a_tests(datos)
+    # Resumen del contenido cargado
+    hay_contenido = bool(texto_input.strip()) or bool(archivos)
+    if hay_contenido:
+        partes_info = []
+        if texto_input.strip():
+            partes_info.append(f"📝 Texto ({len(texto_input.strip())} caracteres)")
+        if archivos:
+            for f in archivos:
+                ext = f.name.rsplit(".", 1)[-1].upper()
+                partes_info.append(f"{'🖼️' if ext in ('JPG','JPEG','PNG','WEBP') else '📄'} {f.name}")
+        st.info("**Contenido a procesar:**\n" + "\n".join(f"- {p}" for p in partes_info))
+
+    procesar_ia = st.button(
+        "Procesar con Gemini",
+        type="primary",
+        use_container_width=True,
+        disabled=not (_GEMINI_OK and bool(api_key) and hay_contenido),
+    )
+
+    if procesar_ia:
+        with st.spinner("Enviando a Gemini y extrayendo preguntas..."):
+            try:
+                datos = extraer_con_gemini_multi(api_key, texto=texto_input, archivos=archivos)
+                todos_ia = gemini_a_tests(datos)
+                if not todos_ia or not todos_ia[0]["preguntas"]:
+                    st.error("Gemini no encontró preguntas en el contenido proporcionado.")
+                else:
+                    n = sum(len(t["preguntas"]) for t in todos_ia)
+                    st.success(f"Se han extraído {n} preguntas. Generando archivos...")
                     st.session_state["resultado"] = construir_resultado(todos_ia)
                     st.rerun()
-                except json.JSONDecodeError:
-                    st.error("Gemini no devolvió JSON válido. Intenta con un texto más estructurado.")
-                except Exception as e:
-                    st.error(f"Error: {e}")
-
-    else:
-        imagenes = st.file_uploader(
-            "Sube fotos del examen (jpg, png — una o varias paginas):",
-            type=["jpg", "jpeg", "png"],
-            accept_multiple_files=True,
-        )
-        procesar_ia = st.button("Procesar con Gemini", type="primary",
-                                disabled=not (_GEMINI_OK and bool(api_key) and bool(imagenes)))
-
-        if procesar_ia and imagenes:
-            todos_ia: list[dict] = []
-            progress = st.progress(0)
-            for idx, img_file in enumerate(imagenes):
-                progress.progress(int((idx / len(imagenes)) * 100),
-                                  text=f"Procesando imagen {idx + 1}/{len(imagenes)}...")
-                with st.spinner(f"Procesando {img_file.name}..."):
-                    try:
-                        img_bytes = img_file.read()
-                        mime = img_file.type or "image/jpeg"
-                        datos = extraer_con_gemini(api_key, imagen_bytes=img_bytes, mime_type=mime)
-                        todos_ia.extend(gemini_a_tests(datos))
-                    except json.JSONDecodeError:
-                        st.warning(f"{img_file.name}: Gemini no pudo extraer preguntas válidas.")
-                    except Exception as e:
-                        st.warning(f"{img_file.name}: Error — {e}")
-
-            progress.progress(100, text="Listo.")
-            if todos_ia:
-                st.session_state["resultado"] = construir_resultado(todos_ia)
-                st.rerun()
-            else:
-                st.error("No se pudieron extraer preguntas de las imágenes proporcionadas.")
+            except json.JSONDecodeError:
+                st.error(
+                    "Gemini no devolvió JSON válido. "
+                    "Prueba con contenido más estructurado o divide el material en partes."
+                )
+            except Exception as e:
+                st.error(f"Error: {e}")
 
     with st.expander("💡 Consejos para mejores resultados"):
         st.markdown("""
-- **Texto:** cuanto más limpio y estructurado, mejor. No importa si hay números de pregunta, artefactos o codificación rara — Gemini los limpia.
-- **Imágenes:** usa fotos bien iluminadas y rectas. Puedes subir varias imágenes de un mismo examen de varias páginas.
+- **Todo a la vez:** puedes combinar texto pegado + fotos + PDF + Word en una sola operación.
+- **Imágenes:** fotos bien iluminadas y rectas. Varias páginas = varios archivos.
+- **PDFs:** se envían directamente a Gemini. Funciona tanto con PDFs de texto como escaneados.
+- **Word (.docx):** se extrae el texto automáticamente antes de enviarlo.
 - **Respuesta correcta:** Gemini detecta marcas de lápiz, asteriscos (*), letras circuladas, (C), subrayados, etc.
-- Si Gemini falla, reformatea el texto manualmente separando claramente cada pregunta y sus opciones.
+- Si falla con mucho contenido, divide en partes más pequeñas y procesa por separado.
 """)
