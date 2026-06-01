@@ -641,10 +641,10 @@ def _texto_de_docx(datos: bytes) -> str:
 
 _MODELOS_GEMINI = [
     "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
     "gemini-2.5-flash-preview-05-20",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro-latest",
 ]
 
 _PROMPT_CORRECCION = """\
@@ -661,13 +661,13 @@ SOLO devuelve JSON valido, sin ningun texto adicional.
 
 def _gemini_call(api_key: str, modelo: str, partes: list) -> str:
     """
-    Llama directamente al REST API de Gemini v1 sin ningun SDK de Google.
+    Llama al REST API de Gemini.
+    - Intenta v1 primero; si devuelve 404, reintenta con v1beta.
+    - En caso de 429 (rate limit) reintenta hasta 3 veces con espera exponencial.
     partes: lista de str (texto) o dict {"mime_type": str, "data": bytes}
     """
-    url = (
-        f"https://generativelanguage.googleapis.com/v1/models"
-        f"/{modelo}:generateContent"
-    )
+    import time
+
     headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
 
     parts_json = []
@@ -683,9 +683,33 @@ def _gemini_call(api_key: str, modelo: str, partes: list) -> str:
             })
 
     body = {"contents": [{"parts": parts_json}]}
-    resp = requests.post(url, headers=headers, json=body, timeout=180)
-    resp.raise_for_status()
-    return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+    for version in ("v1", "v1beta"):
+        url = (
+            f"https://generativelanguage.googleapis.com/{version}"
+            f"/models/{modelo}:generateContent"
+        )
+        for intento in range(3):
+            resp = requests.post(url, headers=headers, json=body, timeout=180)
+            if resp.status_code == 404:
+                break  # probar siguiente version de API
+            if resp.status_code == 429:
+                if intento < 2:
+                    time.sleep(2 ** intento + 1)  # 2s, 3s
+                    continue
+                raise requests.HTTPError(
+                    "429 — Demasiadas peticiones al API de Gemini. "
+                    "Espera unos segundos y vuelve a intentarlo "
+                    "(el tier gratuito tiene limite de ~15 req/min).",
+                    response=resp,
+                )
+            resp.raise_for_status()
+            return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+    raise requests.HTTPError(
+        f"404 — El modelo '{modelo}' no existe en las APIs v1 ni v1beta. "
+        "Prueba con 'gemini-2.0-flash' o 'gemini-2.5-flash-preview-05-20'."
+    )
 
 
 def aplicar_correccion_gemini(api_key: str, modelo: str,
