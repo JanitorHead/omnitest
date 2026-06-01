@@ -200,6 +200,63 @@ st.markdown(
 
 st.divider()
 
+# Resultados persistentes: sobreviven a la re-ejecucion que disparan los botones de descarga
+if "resultado" not in st.session_state:
+    st.session_state["resultado"] = None
+
+# Pantalla de resultados: se muestra mientras haya datos en session_state
+if st.session_state["resultado"] is not None:
+    res = st.session_state["resultado"]
+
+    if res["errores"]:
+        st.warning(
+            f"No se pudieron procesar {len(res['errores'])} enlace(s). "
+            "Revisa tu conexion o que la URL sea correcta."
+        )
+
+    st.success(f"Procesados {res['tests_ok']} test(s) correctamente. Archivos listos para descargar.")
+
+    col_word, col_remnote = st.columns(2)
+
+    with col_word:
+        st.download_button(
+            label="⬇️ Descargar ZIP (Word)",
+            data=res["zip_word"],
+            file_name="Banco_de_Preguntas_Daypo.zip",
+            mime="application/zip",
+            use_container_width=True,
+        )
+
+    with col_remnote:
+        st.download_button(
+            label="🧠 Descargar ZIP RemNote MCQ",
+            data=res["zip_remnote"],
+            file_name="Daypo_RemNote_MCQ.zip",
+            mime="application/zip",
+            use_container_width=True,
+            help="Importa este ZIP en RemNote: ajustes → Importar → Markdown.",
+        )
+
+    with st.expander("ℹ️ Como importar en RemNote"):
+        st.markdown(
+            """
+1. Descarga el archivo **Daypo_RemNote_MCQ.zip** (contiene el Markdown y las imagenes).
+2. Abre RemNote → icono de ajustes → **Importar** → **Markdown**.
+3. Sube el ZIP directamente (no hace falta descomprimirlo).
+4. Los tests apareceran como documentos con tarjetas MCQ; las imagenes
+   se incrustan automaticamente en cada pregunta.
+5. RemNote baraja el orden de las opciones al practicar.
+            """
+        )
+
+    st.divider()
+    if st.button("🔄 Nueva extraccion", use_container_width=True):
+        st.session_state["resultado"] = None
+        st.rerun()
+
+    st.stop()
+
+# Pantalla de entrada: solo visible cuando no hay resultado activo
 enlaces_texto = st.text_area(
     "Pega aqui tus enlaces de Daypo (o cualquier texto que los contenga):",
     height=220,
@@ -272,7 +329,6 @@ if iniciar:
             if es_multiple:
                 doc_unificado.add_heading(titulo, 1)
 
-            # Lista enriquecida con bytes de imagen para la exportacion RemNote
             preguntas_con_img: list[dict] = []
 
             for i, pregunta in enumerate(preguntas, start=1):
@@ -317,45 +373,12 @@ if iniciar:
     barra.progress(100, text="Extraccion completada.")
     log.empty()
 
-    if errores:
-        st.warning(f"No se pudieron procesar {len(errores)} enlace(s). Revisa tu conexion o que la URL sea correcta.")
-
-    tests_ok = len(enlaces) - len(errores)
     memoria_zip.seek(0)
-    st.success(f"Procesados {tests_ok} test(s) correctamente. Archivos listos para descargar.")
 
-    col_word, col_remnote = st.columns(2)
-
-    with col_word:
-        st.download_button(
-            label="⬇️ Descargar ZIP (Word)",
-            data=memoria_zip.getvalue(),
-            file_name="Banco_de_Preguntas_Daypo.zip",
-            mime="application/zip",
-            use_container_width=True,
-        )
-
-    with col_remnote:
-        if todos_los_tests:
-            zip_remnote = generar_zip_remnote(todos_los_tests)
-            st.download_button(
-                label="🧠 Descargar ZIP RemNote MCQ",
-                data=zip_remnote,
-                file_name="Daypo_RemNote_MCQ.zip",
-                mime="application/zip",
-                use_container_width=True,
-                help="Importa este ZIP en RemNote: ajustes → Importar → Markdown.",
-            )
-
-    if todos_los_tests:
-        with st.expander("ℹ️ Como importar en RemNote"):
-            st.markdown(
-                """
-1. Descarga el archivo **Daypo_RemNote_MCQ.zip** (contiene el Markdown y las imagenes).
-2. Abre RemNote → icono de ajustes → **Importar** → **Markdown**.
-3. Sube el ZIP directamente (no hace falta descomprimirlo).
-4. Los tests apareceran como documentos con tarjetas MCQ; las imagenes
-   se incrustan automaticamente en cada pregunta.
-5. RemNote baraja el orden de las opciones al practicar.
-                """
-            )
+    st.session_state["resultado"] = {
+        "zip_word": memoria_zip.getvalue(),
+        "zip_remnote": generar_zip_remnote(todos_los_tests),
+        "tests_ok": len(enlaces) - len(errores),
+        "errores": errores,
+    }
+    st.rerun()
