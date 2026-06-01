@@ -418,43 +418,58 @@ def generar_apkg_anki(tests_datos: list[dict]) -> bytes:
 
 
 def generar_zip_imagenes(tests_datos: list[dict]) -> bytes:
-    """ZIP con solo las imagenes, organizadas por test."""
+    """ZIP con solo las imagenes nombradas {titulo}_{N:03d}.jpg."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for test in tests_datos:
-            carpeta = limpiar_nombre_carpeta(test["titulo"])
+            carpeta = re.sub(r'\s+', '_', limpiar_nombre_carpeta(test["titulo"]))
+            n = 1
             for p in test["preguntas"]:
-                if p.get("img_bytes") and p.get("img_nombre"):
-                    zf.writestr(f"{carpeta}/{p['img_nombre']}", p["img_bytes"])
+                if p.get("img_bytes"):
+                    nombre = f"{carpeta}_{n:03d}.jpg"
+                    zf.writestr(f"{carpeta}/{nombre}", p["img_bytes"])
+                    n += 1
     buf.seek(0)
     return buf.getvalue()
 
 
 def generar_pdf(tests_datos: list[dict]) -> bytes:
-    """PDF con preguntas, imagenes incrustadas y opcion correcta marcada con >>."""
+    """PDF con preguntas, imagenes y opcion correcta marcada con >>."""
     def safe(t: str) -> str:
         return t.encode("latin-1", errors="replace").decode("latin-1")
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_margins(15, 15, 15)
+    # Margen y ancho de pagina A4: 210mm - 2*20mm = 170mm usable
+    MARGEN = 20
+    W = 170
+
+    pdf = FPDF(format="A4")
+    pdf.set_margins(MARGEN, MARGEN, MARGEN)
+    pdf.set_auto_page_break(auto=True, margin=MARGEN)
 
     for test in tests_datos:
         pdf.add_page()
         pdf.set_font("Helvetica", "B", 16)
-        pdf.multi_cell(0, 10, safe(test["titulo"]))
-        pdf.ln(5)
+        pdf.set_x(MARGEN)
+        try:
+            pdf.multi_cell(W, 10, safe(test["titulo"]), align="L")
+        except Exception:
+            pass
+        pdf.ln(4)
 
         for i, p in enumerate(test["preguntas"], 1):
             pdf.set_font("Helvetica", "B", 12)
-            pdf.multi_cell(0, 8, safe(f"{i}. {p['enunciado']}"))
+            pdf.set_x(MARGEN)
+            try:
+                pdf.multi_cell(W, 8, safe(f"{i}. {p['enunciado']}"), align="L")
+            except Exception:
+                pass
 
             if p.get("img_bytes"):
                 with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
                     f.write(p["img_bytes"])
                     tmp = f.name
                 try:
-                    pdf.image(tmp, w=110)
+                    pdf.image(tmp, x=MARGEN, w=100)
                     pdf.ln(2)
                 except Exception:
                     pass
@@ -464,12 +479,19 @@ def generar_pdf(tests_datos: list[dict]) -> bytes:
             for texto, es_correcta in p["opciones"]:
                 if not texto:
                     continue
+                pdf.set_x(MARGEN + 4)
                 if es_correcta:
                     pdf.set_font("Helvetica", "B", 11)
-                    pdf.multi_cell(0, 7, safe(f"  >> {texto}"))
+                    try:
+                        pdf.multi_cell(W - 4, 7, safe(f">> {texto}"), align="L")
+                    except Exception:
+                        pass
                 else:
                     pdf.set_font("Helvetica", "", 11)
-                    pdf.multi_cell(0, 7, safe(f"     {texto}"))
+                    try:
+                        pdf.multi_cell(W - 4, 7, safe(texto), align="L")
+                    except Exception:
+                        pass
             pdf.ln(4)
 
     return bytes(pdf.output())
@@ -707,17 +729,19 @@ if st.session_state["resultado"] is not None:
     st.success(f"Procesados {res['tests_ok']} test(s) correctamente. Archivos listos para descargar.")
 
     nb = res["nombre_base"]
+    individuales = res["tests_individuales"]
+    es_multi = len(individuales) > 1
 
-    # Fila 1: formatos de estudio
+    # Fila 1
     col_word, col_remnote, col_anki = st.columns(3)
     with col_word:
         st.download_button(
-            label="📄 Word (con imágenes)",
-            data=res["zip_word"],
-            file_name=f"{nb}_Word.zip",
-            mime="application/zip",
+            label="📄 Word" + (" (todos)" if es_multi else ""),
+            data=res["word_combinado"],
+            file_name=f"{nb}_Word.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True,
-            help="ZIP con un .docx por test. Las imagenes van incrustadas dentro del Word.",
+            help="Documento Word con todas las preguntas y respuestas (sin imagenes).",
         )
     with col_remnote:
         st.download_button(
@@ -738,12 +762,12 @@ if st.session_state["resultado"] is not None:
             help="Doble clic en el .apkg para importar directamente en Anki.",
         )
 
-    # Fila 2: formatos extra
+    # Fila 2
     col_pdf, col_html, col_imgs = st.columns(3)
     with col_pdf:
         st.download_button(
-            label="🖨️ PDF",
-            data=res["pdf"],
+            label="🖨️ PDF" + (" (todos)" if es_multi else ""),
+            data=res["pdf_combinado"],
             file_name=f"{nb}.pdf",
             mime="application/pdf",
             use_container_width=True,
@@ -751,22 +775,46 @@ if st.session_state["resultado"] is not None:
         )
     with col_html:
         st.download_button(
-            label="🌐 Mini-App Quiz (.html)",
+            label="🌐 Mini-App Quiz",
             data=res["html_quiz"],
             file_name=f"{nb}_Quiz.html",
             mime="text/html",
             use_container_width=True,
-            help="Abre el archivo en cualquier navegador. Sin instalar nada. Funciona offline.",
+            help="Abre en cualquier navegador. Sin instalar nada. Funciona offline.",
         )
     with col_imgs:
         st.download_button(
-            label="🖼️ Imágenes sueltas",
+            label="🖼️ Imagenes sueltas",
             data=res["zip_imagenes"],
             file_name=f"{nb}_Imagenes.zip",
             mime="application/zip",
             use_container_width=True,
-            help="ZIP solo con las imagenes de las preguntas, organizadas por test.",
+            help="ZIP con las imagenes nombradas por test y numero correlativo.",
         )
+
+    # Descarga por tests individuales (solo si hay mas de uno)
+    if es_multi:
+        with st.expander(f"📁 Descargar tests individuales ({len(individuales)} tests)"):
+            for i, t in enumerate(individuales):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.download_button(
+                        label=f"📄 {t['titulo']}",
+                        data=t["word"],
+                        file_name=f"{t['nombre_clean']}_Word.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True,
+                        key=f"word_ind_{i}",
+                    )
+                with c2:
+                    st.download_button(
+                        label=f"🖨️ {t['titulo']}",
+                        data=t["pdf"],
+                        file_name=f"{t['nombre_clean']}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key=f"pdf_ind_{i}",
+                    )
 
     with st.expander("ℹ️ Como importar en RemNote"):
         st.markdown(
@@ -808,14 +856,6 @@ enlaces_texto = st.text_area(
     placeholder="Pega aqui tus enlaces de Daypo...",
 )
 
-if enlaces_texto.strip():
-    enlaces_detectados = extraer_enlaces_daypo(enlaces_texto)
-    if enlaces_detectados:
-        st.success(f"🔍 {len(enlaces_detectados)} enlace(s) detectado(s)")
-        for e in enlaces_detectados:
-            st.caption(e)
-    else:
-        st.warning("No se han detectado enlaces de Daypo en el texto introducido todavia.")
 
 col1, col2 = st.columns([3, 1])
 with col1:
@@ -883,10 +923,11 @@ if iniciar:
                             img_bytes,
                         )
 
-                procesar_pregunta(doc_indiv, i, pregunta["enunciado"], img_bytes, pregunta["opciones"])
+                # Word sin imagenes (las imagenes van en el ZIP de imagenes sueltas)
+                procesar_pregunta(doc_indiv, i, pregunta["enunciado"], None, pregunta["opciones"])
 
                 if es_multiple:
-                    procesar_pregunta(doc_unificado, i, pregunta["enunciado"], img_bytes, pregunta["opciones"])
+                    procesar_pregunta(doc_unificado, i, pregunta["enunciado"], None, pregunta["opciones"])
 
                 preguntas_con_img.append({
                     "enunciado": pregunta["enunciado"],
@@ -895,11 +936,18 @@ if iniciar:
                     "img_nombre": img_nombre,
                 })
 
-            todos_los_tests.append({"titulo": titulo, "preguntas": preguntas_con_img})
-
+            # Guardar bytes individuales del Word ANTES de cerrar el ZIP
             buf_indiv = BytesIO()
             doc_indiv.save(buf_indiv)
-            zip_file.writestr(f"{titulo_carpeta}/{titulo_carpeta}.docx", buf_indiv.getvalue())
+            word_indiv_bytes = buf_indiv.getvalue()
+
+            todos_los_tests.append({
+                "titulo": titulo,
+                "preguntas": preguntas_con_img,
+                "_word_bytes": word_indiv_bytes,
+            })
+
+            zip_file.writestr(f"{titulo_carpeta}/{titulo_carpeta}.docx", word_indiv_bytes)
 
             if es_multiple:
                 doc_unificado.add_page_break()
@@ -907,21 +955,36 @@ if iniciar:
         if es_multiple:
             buf_unif = BytesIO()
             doc_unificado.save(buf_unif)
-            zip_file.writestr("TODOS_LOS_TESTS_UNIDOS.docx", buf_unif.getvalue())
+            word_combinado = buf_unif.getvalue()
+            zip_file.writestr("TODOS_LOS_TESTS_UNIDOS.docx", word_combinado)
+        else:
+            word_combinado = todos_los_tests[0]["_word_bytes"] if todos_los_tests else b""
 
     barra.progress(100, text="Extraccion completada.")
     log.empty()
 
-    memoria_zip.seek(0)
-
     nombre_base = generar_nombre_base(todos_los_tests)
+
+    # Generar PDF combinado y uno por test
+    pdf_combinado = generar_pdf(todos_los_tests)
+    tests_individuales = [
+        {
+            "titulo": t["titulo"],
+            "nombre_clean": generar_nombre_base([t]),
+            "word": t["_word_bytes"],
+            "pdf": generar_pdf([t]),
+        }
+        for t in todos_los_tests
+    ]
+
     st.session_state["resultado"] = {
         "nombre_base": nombre_base,
-        "zip_word": memoria_zip.getvalue(),
+        "word_combinado": word_combinado,
+        "tests_individuales": tests_individuales,
         "zip_imagenes": generar_zip_imagenes(todos_los_tests),
         "zip_remnote": generar_zip_remnote(todos_los_tests),
         "apkg_anki": generar_apkg_anki(todos_los_tests),
-        "pdf": generar_pdf(todos_los_tests),
+        "pdf_combinado": pdf_combinado,
         "html_quiz": generar_html_quiz(todos_los_tests, nombre_base),
         "tests_ok": len(enlaces) - len(errores),
         "errores": errores,
