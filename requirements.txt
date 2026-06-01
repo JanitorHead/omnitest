@@ -3,4 +3,4 @@ requests
 python-docx
 genanki
 fpdf2
-google-generativeai
+google-genai

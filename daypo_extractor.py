@@ -14,7 +14,8 @@ import genanki
 from fpdf import FPDF
 
 try:
-    import google.generativeai as genai
+    from google import genai as _genai_mod
+    from google.genai import types as _genai_types
     _GEMINI_OK = True
 except ImportError:
     _GEMINI_OK = False
@@ -663,17 +664,20 @@ SOLO devuelve JSON valido, sin ningun texto adicional.
 """
 
 
+def _gemini_client(api_key: str):
+    if not _GEMINI_OK:
+        raise RuntimeError("Instala google-genai: pip install google-genai")
+    return _genai_mod.Client(api_key=api_key)
+
+
 def aplicar_correccion_gemini(api_key: str, modelo: str,
                                datos_actuales: dict, peticion: str) -> dict:
-    if not _GEMINI_OK:
-        raise RuntimeError("Instala google-generativeai")
-    genai.configure(api_key=api_key)
-    m = genai.GenerativeModel(modelo)
+    client = _gemini_client(api_key)
     prompt = _PROMPT_CORRECCION.format(
         json_actual=json.dumps(datos_actuales, ensure_ascii=False, indent=2),
         peticion=peticion,
     )
-    response = m.generate_content(prompt)
+    response = client.models.generate_content(model=modelo, contents=prompt)
     raw = response.text.strip()
     for marker in ["```json", "```"]:
         if marker in raw:
@@ -685,16 +689,13 @@ def aplicar_correccion_gemini(api_key: str, modelo: str,
 def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
                               texto: str = "", archivos: list | None = None) -> dict:
     """
-    Procesa texto pegado + archivos (jpg/png/pdf/docx) en una sola llamada a Gemini.
-    Los .docx se convierten a texto; PDFs e imágenes se envían como partes binarias.
+    Procesa texto pegado + archivos (jpg/png/pdf/docx) en una sola llamada.
+    Usa el nuevo SDK google-genai (v1 API). Los .docx se convierten a texto;
+    PDFs e imágenes se envían como partes binarias nativas.
     """
-    if not _GEMINI_OK:
-        raise RuntimeError("Instala google-generativeai: pip install google-generativeai")
+    client = _gemini_client(api_key)
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(modelo)
-
-    partes: list = [_PROMPT_GEMINI]
+    contenidos: list = [_PROMPT_GEMINI]
     texto_acumulado = texto.strip()
 
     for archivo in (archivos or []):
@@ -705,20 +706,24 @@ def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
                 texto_doc = _texto_de_docx(datos)
                 texto_acumulado += f"\n\n--- {archivo.name} ---\n{texto_doc}"
             except Exception:
-                pass  # si falla la extraccion, se ignora silenciosamente
+                pass
         elif ext == "pdf":
-            partes.append({"mime_type": "application/pdf", "data": datos})
+            contenidos.append(
+                _genai_types.Part.from_bytes(data=datos, mime_type="application/pdf")
+            )
         elif ext in ("jpg", "jpeg", "png", "webp"):
             mime = archivo.type or f"image/{ext.replace('jpg', 'jpeg')}"
-            partes.append({"mime_type": mime, "data": datos})
+            contenidos.append(
+                _genai_types.Part.from_bytes(data=datos, mime_type=mime)
+            )
 
     if texto_acumulado:
-        partes.append(f"\n\n--- TEXTO / DOCUMENTOS ---\n{texto_acumulado}")
+        contenidos.append(f"\n\n--- TEXTO / DOCUMENTOS ---\n{texto_acumulado}")
 
-    if len(partes) == 1:
+    if len(contenidos) == 1:
         raise ValueError("No hay contenido para procesar.")
 
-    response = model.generate_content(partes)
+    response = client.models.generate_content(model=modelo, contents=contenidos)
     raw = response.text.strip()
     for marker in ["```json", "```"]:
         if marker in raw:
