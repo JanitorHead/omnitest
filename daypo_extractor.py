@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 import zipfile
 import tempfile
 import os
-import random
 from io import BytesIO
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -196,60 +195,108 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
     return buf.getvalue()
 
 
-# Modelo Anki reutilizable (ID fijo para que Anki lo reconozca entre sesiones)
+# Modelo Anki con botones interactivos, shuffle en JS y feedback verde/rojo.
+# La correcta va SIEMPRE en Option A; el template la baraja visualmente cada vez.
+# ID fijo para que Anki reconozca el tipo de nota entre importaciones.
 _ANKI_MODEL = genanki.Model(
-    1607392319,
-    "Daypo MCQ",
+    1607392320,
+    "Daypo MCQ Interactive",
     fields=[
         {"name": "Question"},
         {"name": "Image"},
-        {"name": "Options"},
-        {"name": "CorrectLetter"},
-        {"name": "Correct"},
+        {"name": "Option A"},   # siempre la respuesta correcta
+        {"name": "Option B"},
+        {"name": "Option C"},
+        {"name": "Option D"},
+        {"name": "Option E"},
+        {"name": "Correct Answer"},  # siempre "A"
     ],
     templates=[
         {
             "name": "MCQ Card",
             "qfmt": """\
-<div class="question">{{Question}}</div>
-{{Image}}
-<div class="options">{{Options}}</div>""",
+<div class="card-container">
+  <div class="question">{{Question}}</div>
+  {{#Image}}<div class="image">{{Image}}</div>{{/Image}}
+  <hr>
+  <div class="options-container" id="options-box">
+    {{#Option A}}<button class="option-btn" id="btn-A" onclick="selectOption('A')">{{Option A}}</button>{{/Option A}}
+    {{#Option B}}<button class="option-btn" id="btn-B" onclick="selectOption('B')">{{Option B}}</button>{{/Option B}}
+    {{#Option C}}<button class="option-btn" id="btn-C" onclick="selectOption('C')">{{Option C}}</button>{{/Option C}}
+    {{#Option D}}<button class="option-btn" id="btn-D" onclick="selectOption('D')">{{Option D}}</button>{{/Option D}}
+    {{#Option E}}<button class="option-btn" id="btn-E" onclick="selectOption('E')">{{Option E}}</button>{{/Option E}}
+  </div>
+</div>
+<script>
+function selectOption(letter) {
+  var btns = document.getElementsByClassName("option-btn");
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove("selected");
+  document.getElementById("btn-" + letter).classList.add("selected");
+  sessionStorage.setItem("ankiUserChoice", letter);
+}
+sessionStorage.removeItem("ankiUserChoice");
+(function shuffleOptions() {
+  var box = document.getElementById("options-box");
+  var btns = Array.from(box.children);
+  for (var i = btns.length - 1; i > 0; i--) {
+    box.appendChild(btns[Math.floor(Math.random() * (i + 1))]);
+  }
+})();
+</script>""",
             "afmt": """\
-<div class="question">{{Question}}</div>
-{{Image}}
-<div class="options">{{Options}}</div>
-<hr id="answer">
-<div class="answer">&#10003; {{CorrectLetter}}) <b>{{Correct}}</b></div>""",
+{{FrontSide}}
+<div id="correct-key" style="display:none;">{{Correct Answer}}</div>
+<script>
+var correct = document.getElementById("correct-key").innerText.trim().toUpperCase();
+var chosen  = sessionStorage.getItem("ankiUserChoice") || "";
+var cBtn = document.getElementById("btn-" + correct);
+if (cBtn) cBtn.classList.add("correct");
+if (chosen && chosen !== correct) {
+  var wBtn = document.getElementById("btn-" + chosen);
+  if (wBtn) wBtn.classList.add("incorrect");
+}
+</script>""",
         }
     ],
     css="""\
 .card {
-    font-family: Arial, sans-serif;
-    font-size: 18px;
-    text-align: left;
-    color: #1a1a1a;
-    background: #ffffff;
-    padding: 20px;
-    max-width: 800px;
-    margin: 0 auto;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  text-align: left;
+  color: #333;
+  background-color: #f4f4f4;
 }
-.question { font-size: 20px; font-weight: bold; margin-bottom: 14px; }
+.card-container {
+  max-width: 620px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,.1);
+}
+.question { font-size: 1.25em; font-weight: bold; margin-bottom: 14px; }
 .image { margin: 12px 0; }
 .image img { max-width: 100%; max-height: 280px; border-radius: 6px; }
-.options { line-height: 2.2; }
-.answer { color: #1a7328; font-size: 20px; margin-top: 12px; }
+.options-container { display: flex; flex-direction: column; gap: 10px; }
+.option-btn {
+  text-align: left; padding: 14px; border: 2px solid #ddd;
+  border-radius: 6px; background: #fff; cursor: pointer;
+  font-size: 1em; transition: all .2s ease;
+}
+.option-btn:hover { background: #f0f0f0; border-color: #bbb; }
+.option-btn.selected { border-color: #0056b3; background: #e6f2ff; }
+.option-btn.correct  { border-color: #28a745 !important; background: #d4edda !important; color: #155724 !important; }
+.option-btn.incorrect{ border-color: #dc3545 !important; background: #f8d7da !important; color: #721c24 !important; }
 """,
 )
 
 
 def generar_apkg_anki(tests_datos: list[dict]) -> bytes:
     """
-    Genera un archivo .apkg de Anki con nota MCQ custom.
+    Genera un .apkg de Anki con nota MCQ interactiva.
 
-    Anverso: enunciado + imagen + opciones A/B/C/D mezcladas.
-    Reverso: igual que el anverso con la respuesta correcta marcada en verde.
-    Las opciones se mezclan de forma determinista por pregunta para que la
-    respuesta correcta no sea siempre la misma letra entre sesiones de repaso.
+    La correcta va en Option A; el template JS la baraja visualmente en cada repaso.
+    Al girar la tarjeta: la correcta se pinta verde, la elegida incorrecta en rojo.
     """
     deck = genanki.Deck(2059400110, "Daypo Extractor")
 
@@ -271,17 +318,10 @@ def generar_apkg_anki(tests_datos: list[dict]) -> bytes:
                 if correcta is None:
                     continue
 
-                # Mezclar opciones de forma determinista segun el enunciado
-                todas = [correcta] + incorrectas
-                rng = random.Random(hash(pregunta["enunciado"]) & 0xFFFFFFFF)
-                rng.shuffle(todas)
-                correct_idx = todas.index(correcta)
-                letras = "ABCDEFGH"
-                correct_letter = letras[correct_idx]
-
-                options_html = "<br>".join(
-                    f"{letras[i]}) {opt}" for i, opt in enumerate(todas)
-                )
+                # Correcta en Option A; incorrectas en B-E; Correct Answer siempre "A"
+                opciones_campos = [correcta] + incorrectas
+                fields_opciones = [opciones_campos[i] if i < len(opciones_campos) else ""
+                                   for i in range(5)]
 
                 image_html = ""
                 if pregunta.get("img_bytes") and pregunta.get("img_nombre"):
@@ -290,16 +330,15 @@ def generar_apkg_anki(tests_datos: list[dict]) -> bytes:
                     with open(img_path, "wb") as f:
                         f.write(pregunta["img_bytes"])
                     media_files.append(img_path)
-                    image_html = f'<div class="image"><img src="{nombre}"></div>'
+                    image_html = f'<img src="{nombre}">'
 
                 note = genanki.Note(
                     model=_ANKI_MODEL,
                     fields=[
                         pregunta["enunciado"],
                         image_html,
-                        options_html,
-                        correct_letter,
-                        correcta,
+                        *fields_opciones,  # Option A..E
+                        "A",               # Correct Answer
                     ],
                     guid=genanki.guid_for(test["titulo"], pregunta["enunciado"]),
                 )
