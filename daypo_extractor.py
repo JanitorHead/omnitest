@@ -199,7 +199,7 @@ def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
 # La correcta va SIEMPRE en Option A; el template la baraja visualmente cada vez.
 # ID fijo para que Anki reconozca el tipo de nota entre importaciones.
 _ANKI_MODEL = genanki.Model(
-    1607392321,
+    1607392322,
     "Daypo MCQ Interactive",
     fields=[
         {"name": "Question"},
@@ -262,34 +262,46 @@ if (chosen && chosen !== correct) {
         }
     ],
     css="""\
+/* ── Light mode ─────────────────────────────────────────── */
 .card {
   font-family: Arial, Helvetica, sans-serif;
   font-size: 16px;
   text-align: left;
-  color: #333;
-  background-color: #f4f4f4;
+  color: #1a1a1a;
+  background-color: #f0f0f0;
 }
 .card-container {
   max-width: 620px;
   margin: 20px auto;
   padding: 20px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0,0,0,.1);
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,.12);
 }
-.question { font-size: 1.25em; font-weight: bold; margin-bottom: 14px; }
+.question { font-size: 1.2em; font-weight: bold; margin-bottom: 14px; color: #1a1a1a; }
 .image { margin: 12px 0; }
 .image img { max-width: 100%; max-height: 280px; border-radius: 6px; }
 .options-container { display: flex; flex-direction: column; gap: 10px; }
 .option-btn {
-  text-align: left; padding: 14px; border: 2px solid #ddd;
-  border-radius: 6px; background: #fff; cursor: pointer;
-  font-size: 1em; transition: all .2s ease;
+  text-align: left; padding: 13px 16px;
+  border: 2px solid #d0d0d0; border-radius: 8px;
+  background: #fafafa; color: #1a1a1a;
+  cursor: pointer; font-size: 1em; transition: all .18s ease;
 }
-.option-btn:hover { background: #f0f0f0; border-color: #bbb; }
-.option-btn.selected { border-color: #0056b3; background: #e6f2ff; }
-.option-btn.correct  { border-color: #28a745 !important; background: #d4edda !important; color: #155724 !important; }
-.option-btn.incorrect{ border-color: #dc3545 !important; background: #f8d7da !important; color: #721c24 !important; }
+.option-btn:hover  { background: #efefef; border-color: #aaa; }
+.option-btn.selected { border-color: #0056b3; background: #dceeff; color: #003a80; }
+.option-btn.correct   { border-color: #28a745 !important; background: #d4edda !important; color: #155724 !important; }
+.option-btn.incorrect { border-color: #dc3545 !important; background: #f8d7da !important; color: #721c24 !important; }
+
+/* ── Dark mode (.nightMode añadido por Anki) ─────────────── */
+.card.nightMode { color: #e8e8e8; background-color: #1e1e1e; }
+.card.nightMode .card-container { background: #2a2a2a; box-shadow: 0 4px 10px rgba(0,0,0,.5); }
+.card.nightMode .question { color: #e8e8e8; }
+.card.nightMode .option-btn { background: #333; border-color: #555; color: #e8e8e8; }
+.card.nightMode .option-btn:hover { background: #3d3d3d; border-color: #777; }
+.card.nightMode .option-btn.selected { border-color: #5aabff; background: #1a3a5c; color: #a8d4ff; }
+.card.nightMode .option-btn.correct   { border-color: #2ecc71 !important; background: #1a3d2b !important; color: #7fdca0 !important; }
+.card.nightMode .option-btn.incorrect { border-color: #e74c3c !important; background: #3d1a1a !important; color: #f5a0a0 !important; }
 """,
 )
 
