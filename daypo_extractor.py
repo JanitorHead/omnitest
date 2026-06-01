@@ -125,6 +125,39 @@ def extraer_datos_test(url: str, headers_web: dict) -> tuple[str, str, list] | N
     return id_test, titulo, preguntas
 
 
+def generar_nombre_base(tests_datos: list[dict]) -> str:
+    """
+    Nombre de archivo representativo para la extraccion.
+    - 1 test  → titulo del test (espacios → guiones bajos)
+    - N tests → palabra mas frecuente en los titulos + '_N_tests';
+                si no hay palabra comun, primer titulo truncado + '_y_N_mas'
+    """
+    if not tests_datos:
+        return "Daypo"
+
+    def normalizar(t: str) -> str:
+        return re.sub(r'\s+', '_', limpiar_nombre_carpeta(t)).strip('_')
+
+    if len(tests_datos) == 1:
+        return normalizar(tests_datos[0]["titulo"])
+
+    titulos = [t["titulo"] for t in tests_datos]
+    conteo: dict[str, int] = {}
+    for titulo in titulos:
+        for palabra in set(re.findall(r'[a-zA-ZÀ-ɏ]{4,}', titulo.lower())):
+            conteo[palabra] = conteo.get(palabra, 0) + 1
+
+    umbral = max(2, len(titulos) // 2)
+    candidatos = [(p, c) for p, c in conteo.items() if c >= umbral]
+
+    if candidatos:
+        palabra = max(candidatos, key=lambda x: x[1])[0]
+        return f"{palabra.capitalize()}_{len(titulos)}_tests"
+
+    primer = normalizar(titulos[0])[:25].rstrip('_')
+    return f"{primer}_y_{len(titulos) - 1}_mas"
+
+
 def extraer_enlaces_daypo(texto: str) -> list[str]:
     """Extrae todos los enlaces de Daypo de cualquier bloque de texto."""
     patron = r'https?://(?:www\.)?daypo\.com/[^\s\n\r"\'<>()\[\]{}]+'
@@ -409,13 +442,14 @@ if st.session_state["resultado"] is not None:
 
     st.success(f"Procesados {res['tests_ok']} test(s) correctamente. Archivos listos para descargar.")
 
+    nb = res["nombre_base"]
     col_word, col_remnote, col_anki = st.columns(3)
 
     with col_word:
         st.download_button(
             label="⬇️ Descargar ZIP Word",
             data=res["zip_word"],
-            file_name="Banco_de_Preguntas_Daypo.zip",
+            file_name=f"{nb}_Word.zip",
             mime="application/zip",
             use_container_width=True,
         )
@@ -424,7 +458,7 @@ if st.session_state["resultado"] is not None:
         st.download_button(
             label="🧠 Descargar RemNote MCQ",
             data=res["zip_remnote"],
-            file_name="Daypo_RemNote_MCQ.zip",
+            file_name=f"{nb}_RemNote.zip",
             mime="application/zip",
             use_container_width=True,
             help="Importa el ZIP en RemNote: ajustes → Importar → Markdown.",
@@ -434,10 +468,10 @@ if st.session_state["resultado"] is not None:
         st.download_button(
             label="🃏 Descargar Anki (.apkg)",
             data=res["apkg_anki"],
-            file_name="Daypo_Anki.apkg",
+            file_name=f"{nb}_Anki.apkg",
             mime="application/octet-stream",
             use_container_width=True,
-            help="Abre Anki → Archivo → Importar → selecciona el .apkg.",
+            help="Doble clic en el .apkg para importar directamente en Anki.",
         )
 
     with st.expander("ℹ️ Como importar en RemNote"):
@@ -453,10 +487,16 @@ if st.session_state["resultado"] is not None:
     with st.expander("ℹ️ Como importar en Anki"):
         st.markdown(
             """
-1. Descarga **Daypo_Anki.apkg**.
-2. Abre Anki → **Archivo** → **Importar** → selecciona el archivo.
-3. Se crea el mazo **Daypo Extractor** con el tipo de nota MCQ custom.
-4. Anverso: enunciado + imagen + opciones mezcladas. Reverso: respuesta correcta en verde.
+1. Descarga el archivo **.apkg** y haz **doble clic** sobre el para importarlo directamente
+   (o desde Anki: **Archivo → Importar**).
+2. Se crea el mazo **Daypo Extractor** con el tipo de nota **Daypo MCQ Interactive**.
+
+**Funcionamiento de las flashcards:**
+- Las opciones aparecen en **orden aleatorio diferente** en cada repaso.
+- Haz **clic** en la opcion que creas correcta antes de girar la carta.
+- Pulsa **Espacio** (o el boton de mostrar) para revelar el reverso.
+- La opcion correcta se ilumina en **verde**; si fallaste, tu eleccion en **rojo**.
+- El orden no cambia al girar — las opciones permanecen donde las viste.
             """
         )
 
@@ -580,7 +620,9 @@ if iniciar:
 
     memoria_zip.seek(0)
 
+    nombre_base = generar_nombre_base(todos_los_tests)
     st.session_state["resultado"] = {
+        "nombre_base": nombre_base,
         "zip_word": memoria_zip.getvalue(),
         "zip_remnote": generar_zip_remnote(todos_los_tests),
         "apkg_anki": generar_apkg_anki(todos_los_tests),
