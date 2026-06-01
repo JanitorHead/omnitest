@@ -3,7 +3,6 @@ import requests
 import re
 import xml.etree.ElementTree as ET
 import zipfile
-import base64
 from io import BytesIO
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -137,48 +136,58 @@ def extraer_enlaces_daypo(texto: str) -> list[str]:
     return resultado
 
 
-def generar_md_remnote(tests_datos: list[dict]) -> bytes:
+def generar_zip_remnote(tests_datos: list[dict]) -> bytes:
     """
-    Genera un .md con sintaxis RemNote MCQ e imagenes embebidas como base64.
+    Genera un ZIP con un .md en sintaxis RemNote MCQ y una carpeta images/.
 
-    Al ser autocontenido no depende de rutas externas ni de como el importador
-    de RemNote resuelve los ZIPs. Importar en RemNote: ajustes → Importar → Markdown.
-    La opcion correcta va primera en cada bloque >>A); RemNote baraja al practicar.
+    Formato identico al que RemNote exporta internamente:
+      - Pregunta >>A)        <- item de lista con el marcador MCQ
+          - Opcion correcta  <- subitems con 4 espacios + guion
+          - Opcion incorrecta
+    Las imagenes se referencian por ruta relativa dentro del ZIP.
+    Importar en RemNote: ajustes -> Importar -> Markdown -> subir el ZIP.
     """
-    lineas: list[str] = []
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        lineas: list[str] = []
 
-    for test in tests_datos:
-        lineas.append(test["titulo"])
-        lineas.append("")
-
-        for pregunta in test["preguntas"]:
-            correcta = None
-            incorrectas: list[str] = []
-            for texto, es_correcta in pregunta["opciones"]:
-                if not texto:
-                    continue
-                if es_correcta:
-                    correcta = texto
-                else:
-                    incorrectas.append(texto)
-
-            if correcta is None:
-                continue
-
-            img_ref = ""
-            if pregunta.get("img_bytes"):
-                b64 = base64.b64encode(pregunta["img_bytes"]).decode("utf-8")
-                img_ref = f" ![](data:image/jpeg;base64,{b64})"
-
-            lineas.append(f"\t{pregunta['enunciado']}{img_ref} >>A)")
-            lineas.append(f"\t\t{correcta}")
-            for inc in incorrectas:
-                lineas.append(f"\t\t{inc}")
+        for test in tests_datos:
+            lineas.append(test["titulo"])
             lineas.append("")
 
-        lineas.append("")
+            for pregunta in test["preguntas"]:
+                correcta = None
+                incorrectas: list[str] = []
+                for texto, es_correcta in pregunta["opciones"]:
+                    if not texto:
+                        continue
+                    if es_correcta:
+                        correcta = texto
+                    else:
+                        incorrectas.append(texto)
 
-    return "\n".join(lineas).encode("utf-8")
+                if correcta is None:
+                    continue
+
+                img_ref = ""
+                if pregunta.get("img_bytes") and pregunta.get("img_nombre"):
+                    nombre = pregunta["img_nombre"]
+                    zf.writestr(f"images/{nombre}", pregunta["img_bytes"])
+                    img_ref = f" ![](images/{nombre})"
+
+                # Mismo formato que usa RemNote al exportar sus propias MCQ
+                lineas.append(f"- {pregunta['enunciado']}{img_ref} >>A)")
+                lineas.append(f"    - {correcta}")
+                for inc in incorrectas:
+                    lineas.append(f"    - {inc}")
+                lineas.append("")
+
+            lineas.append("")
+
+        zf.writestr("Banco_de_Preguntas_MCQ.md", "\n".join(lineas).encode("utf-8"))
+
+    buf.seek(0)
+    return buf.getvalue()
 
 
 # ---------------------------------------------------------------------------
@@ -223,22 +232,21 @@ if st.session_state["resultado"] is not None:
 
     with col_remnote:
         st.download_button(
-            label="🧠 Descargar Markdown RemNote MCQ",
-            data=res["md_remnote"],
-            file_name="Daypo_RemNote_MCQ.md",
-            mime="text/markdown",
+            label="🧠 Descargar ZIP RemNote MCQ",
+            data=res["zip_remnote"],
+            file_name="Daypo_RemNote_MCQ.zip",
+            mime="application/zip",
             use_container_width=True,
-            help="Importa este archivo en RemNote: ajustes → Importar → Markdown.",
+            help="Importa este ZIP en RemNote: ajustes → Importar → Markdown.",
         )
 
     with st.expander("ℹ️ Como importar en RemNote"):
         st.markdown(
             """
-1. Descarga el archivo **Daypo_RemNote_MCQ.md**.
+1. Descarga el archivo **Daypo_RemNote_MCQ.zip**.
 2. Abre RemNote → icono de ajustes → **Importar** → **Markdown**.
-3. Sube el archivo `.md` directamente.
-4. Los tests apareceran como documentos con tarjetas MCQ; las imagenes
-   van embebidas en el propio archivo y se incrustan automaticamente.
+3. Sube el ZIP directamente (no hace falta descomprimirlo).
+4. Los tests apareceran como documentos con tarjetas MCQ con sus imagenes.
 5. RemNote baraja el orden de las opciones al practicar.
             """
         )
@@ -371,7 +379,7 @@ if iniciar:
 
     st.session_state["resultado"] = {
         "zip_word": memoria_zip.getvalue(),
-        "md_remnote": generar_md_remnote(todos_los_tests),
+        "zip_remnote": generar_zip_remnote(todos_los_tests),
         "tests_ok": len(enlaces) - len(errores),
         "errores": errores,
     }
