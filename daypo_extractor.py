@@ -471,12 +471,7 @@ if st.session_state["resultado"] is not None:
 enlaces_texto = st.text_area(
     "Pega aqui tus enlaces de Daypo (o cualquier texto que los contenga):",
     height=220,
-    placeholder=(
-        "Puedes pegar los enlaces directamente, uno por linea, o cualquier texto "
-        "que los contenga (correos, documentos, listas con texto extra...):\n\n"
-        "https://www.daypo.com/tema-1-trauma.html\n"
-        "https://www.daypo.com/tema-2-trauma.html"
-    ),
+    placeholder="Pega aqui tus enlaces de Daypo...",
 )
 
 if enlaces_texto.strip():

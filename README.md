@@ -83,37 +83,6 @@ Dado uno o varios enlaces de Daypo (o cualquier texto que los contenga), la herr
 
 ---
 
-## Ejemplo de enlaces
-
-Puedes pegar este bloque directamente en la aplicacion:
-
-```
-https://www.daypo.com/tema-1-trauma.html
-https://www.daypo.com/tema-2-trauma.html
-https://www.daypo.com/tema-3-trauma.html
-https://www.daypo.com/tema-4-trauma.html
-https://www.daypo.com/tema-5-trauma.html
-https://www.daypo.com/tema-7-truma-tumores.html
-https://www.daypo.com/tema-10-trauma.html
-https://www.daypo.com/tema-13-trauma.html
-https://www.daypo.com/tema-14-trauma.html
-https://www.daypo.com/tema-15-trauma.html
-https://www.daypo.com/tema-19-trauma.html
-https://www.daypo.com/tema-22-trauma.html
-https://www.daypo.com/tema-23-trauma.html
-https://www.daypo.com/tema-25-trauma.html
-https://www.daypo.com/tema-26-trauma.html
-https://www.daypo.com/tema-27-trauma.html
-https://www.daypo.com/tema-28-trauma.html
-https://www.daypo.com/tema-29-trauma.html
-https://www.daypo.com/tema-32-trauma.html
-https://www.daypo.com/tema-33-trauma.html
-https://www.daypo.com/tema-34-35-trauma.html
-https://www.daypo.com/imagenes-trauma.html
-```
-
----
-
 ## Archivos del proyecto
 
 | Archivo | Descripcion |
