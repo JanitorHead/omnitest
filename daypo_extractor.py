@@ -5,10 +5,13 @@ import xml.etree.ElementTree as ET
 import zipfile
 import tempfile
 import os
+import base64
+import json
 from io import BytesIO
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 import genanki
+from fpdf import FPDF
 
 st.set_page_config(
     page_title="Daypo Extractor",
@@ -414,6 +417,267 @@ def generar_apkg_anki(tests_datos: list[dict]) -> bytes:
             return f.read()
 
 
+def generar_zip_imagenes(tests_datos: list[dict]) -> bytes:
+    """ZIP con solo las imagenes, organizadas por test."""
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for test in tests_datos:
+            carpeta = limpiar_nombre_carpeta(test["titulo"])
+            for p in test["preguntas"]:
+                if p.get("img_bytes") and p.get("img_nombre"):
+                    zf.writestr(f"{carpeta}/{p['img_nombre']}", p["img_bytes"])
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def generar_pdf(tests_datos: list[dict]) -> bytes:
+    """PDF con preguntas, imagenes incrustadas y opcion correcta marcada con >>."""
+    def safe(t: str) -> str:
+        return t.encode("latin-1", errors="replace").decode("latin-1")
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_margins(15, 15, 15)
+
+    for test in tests_datos:
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.multi_cell(0, 10, safe(test["titulo"]))
+        pdf.ln(5)
+
+        for i, p in enumerate(test["preguntas"], 1):
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.multi_cell(0, 8, safe(f"{i}. {p['enunciado']}"))
+
+            if p.get("img_bytes"):
+                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+                    f.write(p["img_bytes"])
+                    tmp = f.name
+                try:
+                    pdf.image(tmp, w=110)
+                    pdf.ln(2)
+                except Exception:
+                    pass
+                finally:
+                    os.unlink(tmp)
+
+            for texto, es_correcta in p["opciones"]:
+                if not texto:
+                    continue
+                if es_correcta:
+                    pdf.set_font("Helvetica", "B", 11)
+                    pdf.multi_cell(0, 7, safe(f"  >> {texto}"))
+                else:
+                    pdf.set_font("Helvetica", "", 11)
+                    pdf.multi_cell(0, 7, safe(f"     {texto}"))
+            pdf.ln(4)
+
+    return bytes(pdf.output())
+
+
+# ---------------------------------------------------------------------------
+# HTML quiz autocontenida
+# ---------------------------------------------------------------------------
+
+_QUIZ_CSS = """
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;
+  flex-direction:column;align-items:center;padding:16px 12px}
+#app{width:100%;max-width:680px}
+.hdr{display:flex;justify-content:space-between;align-items:center;
+  background:#1e293b;border-radius:12px;padding:12px 16px;margin-bottom:14px}
+.hdr-title{font-size:13px;color:#94a3b8;font-weight:500;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.hdr-score{font-size:13px;color:#60a5fa;font-weight:700;white-space:nowrap}
+.pbar{width:100%;height:6px;background:#1e293b;border-radius:99px;
+  margin-bottom:18px;overflow:hidden}
+.pfill{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);
+  border-radius:99px;transition:width .35s ease}
+.card{background:#1e293b;border-radius:16px;padding:26px;
+  box-shadow:0 4px 24px rgba(0,0,0,.35)}
+.qnum{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:10px}
+.qtext{font-size:18px;font-weight:600;line-height:1.55;color:#f1f5f9;
+  margin-bottom:18px}
+.qimg{width:100%;max-height:270px;object-fit:contain;border-radius:10px;
+  margin-bottom:18px;border:1px solid #334155}
+.opts{display:flex;flex-direction:column;gap:9px;margin-bottom:18px}
+.opt{padding:13px 16px;background:#0f172a;border:2px solid #334155;
+  border-radius:10px;color:#cbd5e1;font-size:15px;text-align:left;
+  cursor:pointer;transition:all .15s ease;width:100%}
+.opt:hover:not(:disabled){border-color:#60a5fa;background:#1e3a5f;color:#e2e8f0}
+.opt.sel{border-color:#3b82f6;background:#1d4ed8;color:#fff}
+.opt.ok{border-color:#22c55e!important;background:#14532d!important;color:#bbf7d0!important}
+.opt.bad{border-color:#ef4444!important;background:#7f1d1d!important;color:#fecaca!important}
+.opt:disabled{cursor:default}
+.acts{display:flex;gap:10px}
+.btn{flex:1;padding:13px;border:none;border-radius:10px;font-size:15px;
+  font-weight:600;cursor:pointer;transition:all .15s ease}
+.btn-show{background:#334155;color:#94a3b8}
+.btn-show:hover{background:#475569;color:#e2e8f0}
+.btn-next{background:#3b82f6;color:#fff}
+.btn-next:hover{background:#2563eb}
+.end{text-align:center;padding:36px 16px}
+.end-pct{font-size:72px;font-weight:800;
+  background:linear-gradient(135deg,#3b82f6,#8b5cf6);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.end-sub{font-size:19px;color:#94a3b8;margin:8px 0 32px}
+.end-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-restart{background:#3b82f6;color:#fff;padding:13px 26px;border-radius:10px;
+  font-size:15px;font-weight:600;cursor:pointer;border:none}
+.btn-restart:hover{background:#2563eb}
+.kbd{display:inline-block;background:#334155;color:#94a3b8;font-size:11px;
+  padding:1px 5px;border-radius:4px;font-family:monospace;margin-left:4px}
+"""
+
+_QUIZ_JS = r"""
+const PREGUNTAS = QUIZ_DATA;
+const TITULO = "QUIZ_TITLE";
+
+function shuf(a){
+  const b=[...a];
+  for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}
+  return b;
+}
+
+const KEY = 'dq_' + PREGUNTAS.length + '_' + (PREGUNTAS[0]||{q:''}).q.slice(0,8);
+let qs = shuf(PREGUNTAS);
+let cur = 0, score = 0, rev = false, sel = null;
+
+try {
+  const sv = JSON.parse(localStorage.getItem(KEY)||'null');
+  if(sv && sv.qs && sv.qs.length===qs.length){qs=sv.qs;cur=sv.cur||0;score=sv.sc||0;}
+} catch(e){}
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify({qs,cur,sc:score}));}catch(e){}}
+const app = document.getElementById('app');
+const pct = ()=> qs.length ? Math.round(cur/qs.length*100) : 0;
+
+function render(){
+  if(cur>=qs.length){renderEnd();return;}
+  const q=qs[cur];
+  if(!q._opts) q._opts=shuf([q.correct,...q.wrong]);
+  rev=false; sel=null;
+  const img=q.img?`<img class="qimg" src="data:image/jpeg;base64,${q.img}" alt="">`:'' ;
+  const opts=q._opts.map((o,i)=>`<button class="opt" id="o${i}" onclick="pick(${i})">${o}</button>`).join('');
+  app.innerHTML=`
+    <div class="hdr">
+      <span class="hdr-title">${TITULO}</span>
+      <span class="hdr-score">${score}/${cur} correctas</span>
+    </div>
+    <div class="pbar"><div class="pfill" style="width:${pct()}%"></div></div>
+    <div class="card">
+      <div class="qnum">Pregunta ${cur+1} / ${qs.length}</div>
+      <div class="qtext">${q.q}</div>
+      ${img}
+      <div class="opts">${opts}</div>
+      <div class="acts">
+        <button class="btn btn-show" onclick="reveal()">
+          Mostrar respuesta <span class="kbd">Espacio</span>
+        </button>
+      </div>
+    </div>`;
+}
+
+function pick(i){
+  if(rev)return;
+  sel=i;
+  document.querySelectorAll('.opt').forEach((b,j)=>b.classList.toggle('sel',j===i));
+}
+
+function reveal(){
+  if(rev)return; rev=true;
+  const q=qs[cur];
+  const ci=q._opts.indexOf(q.correct);
+  document.querySelectorAll('.opt').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===ci)b.classList.add('ok');
+    else if(i===sel)b.classList.add('bad');
+  });
+  if(sel!==null && q._opts[sel]===q.correct) score++;
+  save();
+  document.querySelector('.acts').innerHTML=`
+    <button class="btn btn-next" onclick="next()">
+      ${cur+1<qs.length?'Siguiente &rarr;':'Ver resultado &rarr;'} <span class="kbd">&rarr;</span>
+    </button>`;
+}
+
+function next(){cur++;save();render();}
+
+function renderEnd(){
+  const p=qs.length?Math.round(score/qs.length*100):0;
+  app.innerHTML=`
+    <div class="card end">
+      <div class="end-pct">${p}%</div>
+      <div class="end-sub">${score} de ${qs.length} correctas</div>
+      <div class="end-btns">
+        <button class="btn-restart" onclick="restart()">&#x1F504; Empezar de nuevo</button>
+      </div>
+    </div>`;
+}
+
+function restart(){
+  qs=shuf(PREGUNTAS); qs.forEach(q=>delete q._opts);
+  cur=0; score=0; save(); render();
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&!rev){e.preventDefault();reveal();}
+  if((e.code==='ArrowRight'||e.code==='Enter')&&rev) next();
+  const n=parseInt(e.key);
+  if(!rev&&n>=1&&n<=9){const b=document.getElementById('o'+(n-1));if(b)b.click();}
+});
+render();
+"""
+
+_QUIZ_HTML = (
+    "<!DOCTYPE html>\n<html lang='es'>\n<head>\n"
+    "<meta charset='UTF-8'>\n"
+    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>\n"
+    "<title>QUIZ_TITLE</title>\n"
+    "<style>" + _QUIZ_CSS + "</style>\n"
+    "</head>\n<body>\n<div id='app'></div>\n"
+    "<script>" + _QUIZ_JS + "</script>\n"
+    "</body>\n</html>"
+)
+
+
+def generar_html_quiz(tests_datos: list[dict], nombre: str) -> bytes:
+    """HTML autocontenido con quiz interactivo (shuffle, feedback, progreso)."""
+    preguntas = []
+    for test in tests_datos:
+        for p in test["preguntas"]:
+            correcta = None
+            incorrectas: list[str] = []
+            for texto, es_correcta in p["opciones"]:
+                if not texto:
+                    continue
+                if es_correcta:
+                    correcta = texto
+                else:
+                    incorrectas.append(texto)
+            if correcta is None:
+                continue
+            img_b64 = ""
+            if p.get("img_bytes"):
+                img_b64 = base64.b64encode(p["img_bytes"]).decode()
+            preguntas.append({
+                "q": p["enunciado"],
+                "img": img_b64,
+                "correct": correcta,
+                "wrong": incorrectas,
+            })
+
+    data_json = json.dumps(preguntas, ensure_ascii=False)
+    # Escape </script> inside JSON data to avoid breaking the script tag
+    data_json = data_json.replace("</script>", "<\\/script>")
+    nombre_safe = nombre.replace('"', '').replace("'", "")
+
+    html = _QUIZ_HTML.replace("QUIZ_DATA", data_json).replace("QUIZ_TITLE", nombre_safe)
+    return html.encode("utf-8")
+
+
 # ---------------------------------------------------------------------------
 # Interfaz de usuario (Streamlit)
 # ---------------------------------------------------------------------------
@@ -443,35 +707,65 @@ if st.session_state["resultado"] is not None:
     st.success(f"Procesados {res['tests_ok']} test(s) correctamente. Archivos listos para descargar.")
 
     nb = res["nombre_base"]
-    col_word, col_remnote, col_anki = st.columns(3)
 
+    # Fila 1: formatos de estudio
+    col_word, col_remnote, col_anki = st.columns(3)
     with col_word:
         st.download_button(
-            label="⬇️ Descargar ZIP Word",
+            label="📄 Word (con imágenes)",
             data=res["zip_word"],
             file_name=f"{nb}_Word.zip",
             mime="application/zip",
             use_container_width=True,
+            help="ZIP con un .docx por test. Las imagenes van incrustadas dentro del Word.",
         )
-
     with col_remnote:
         st.download_button(
-            label="🧠 Descargar RemNote MCQ",
+            label="🧠 RemNote MCQ",
             data=res["zip_remnote"],
             file_name=f"{nb}_RemNote.zip",
             mime="application/zip",
             use_container_width=True,
             help="Importa el ZIP en RemNote: ajustes → Importar → Markdown.",
         )
-
     with col_anki:
         st.download_button(
-            label="🃏 Descargar Anki (.apkg)",
+            label="🃏 Anki (.apkg)",
             data=res["apkg_anki"],
             file_name=f"{nb}_Anki.apkg",
             mime="application/octet-stream",
             use_container_width=True,
             help="Doble clic en el .apkg para importar directamente en Anki.",
+        )
+
+    # Fila 2: formatos extra
+    col_pdf, col_html, col_imgs = st.columns(3)
+    with col_pdf:
+        st.download_button(
+            label="🖨️ PDF",
+            data=res["pdf"],
+            file_name=f"{nb}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            help="PDF con preguntas, imagenes y respuesta correcta marcada.",
+        )
+    with col_html:
+        st.download_button(
+            label="🌐 Mini-App Quiz (.html)",
+            data=res["html_quiz"],
+            file_name=f"{nb}_Quiz.html",
+            mime="text/html",
+            use_container_width=True,
+            help="Abre el archivo en cualquier navegador. Sin instalar nada. Funciona offline.",
+        )
+    with col_imgs:
+        st.download_button(
+            label="🖼️ Imágenes sueltas",
+            data=res["zip_imagenes"],
+            file_name=f"{nb}_Imagenes.zip",
+            mime="application/zip",
+            use_container_width=True,
+            help="ZIP solo con las imagenes de las preguntas, organizadas por test.",
         )
 
     with st.expander("ℹ️ Como importar en RemNote"):
@@ -624,8 +918,11 @@ if iniciar:
     st.session_state["resultado"] = {
         "nombre_base": nombre_base,
         "zip_word": memoria_zip.getvalue(),
+        "zip_imagenes": generar_zip_imagenes(todos_los_tests),
         "zip_remnote": generar_zip_remnote(todos_los_tests),
         "apkg_anki": generar_apkg_anki(todos_los_tests),
+        "pdf": generar_pdf(todos_los_tests),
+        "html_quiz": generar_html_quiz(todos_los_tests, nombre_base),
         "tests_ok": len(enlaces) - len(errores),
         "errores": errores,
     }

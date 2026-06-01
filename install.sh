@@ -84,8 +84,8 @@ echo '      OK - Archivos descargados.'
 # 3. Dependencias de Python
 echo ''
 echo '[3/3] Instalando dependencias de Python...'
-python3 -m pip install streamlit requests python-docx genanki -q --disable-pip-version-check 2>/dev/null || \
-python3 -m pip install streamlit requests python-docx genanki -q --user --disable-pip-version-check
+python3 -m pip install streamlit requests python-docx genanki fpdf2 -q --disable-pip-version-check 2>/dev/null || \
+python3 -m pip install streamlit requests python-docx genanki fpdf2 -q --user --disable-pip-version-check
 echo '      OK - Dependencias listas.'
 
 # 4. Arrancar
