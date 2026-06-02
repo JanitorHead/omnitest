@@ -1,105 +1,136 @@
-# Daypo Extractor
+# 🎯 Omnitest
 
-Extrae preguntas, opciones, respuestas correctas e imagenes de cualquier test publico de [Daypo](https://www.daypo.com) y exportalos a **Word**, **RemNote MCQ** o **Anki** con un solo clic.
+**De cualquier fuente a tests para practicar.**
+
+Omnitest es la navaja suiza de estudio para carreras con mucho examen tipo test
+(Medicina, MIR, oposiciones, enfermería, derecho…). Coge tus preguntas estén
+**como estén** —enlaces de Daypo, fotos de exámenes, PDFs escaneados, apuntes en
+Word o texto pegado de cualquier manera— y las convierte en material limpio y
+listo para estudiar en **5 formatos distintos**, incluido un **quiz interactivo**.
 
 ---
 
 ## Usar online (sin instalar nada)
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://extractor-daypo.streamlit.app)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://omnitest.streamlit.app)
 
-La aplicacion esta desplegada gratuitamente en Streamlit Community Cloud. Abrela directamente en el navegador, sin instalar Python ni ninguna dependencia:
+**https://omnitest.streamlit.app**
 
-**https://extractor-daypo.streamlit.app**
+> La app corre en la nube. Tus datos no se almacenan; los archivos se generan al
+> vuelo y se descargan a tu equipo.
 
-> La app se ejecuta en la nube. Tu navegador envia los enlaces a Daypo y recibe los archivos; ningun dato tuyo se almacena.
+---
+
+## ¿Qué hace?
+
+### Dos formas de meter preguntas
+
+| Fuente | Cómo |
+|---|---|
+| 🔗 **Daypo** | Pega uno o varios enlaces (o cualquier texto que los contenga). Omnitest detecta los enlaces, descarga las preguntas, descifra la respuesta correcta y baja las imágenes. |
+| 🤖 **IA (Gemini)** | Pega texto desordenado **y/o** sube **fotos, PDFs y Word** a la vez. La IA hace OCR, limpia artefactos y unifica todo. Si la respuesta correcta no viene marcada, **la deduce** con su conocimiento. Incluye un **chat de correcciones** para afinar el resultado antes de exportar. |
+
+### Cinco formatos de salida (+ imágenes)
+
+| Formato | Para qué |
+|---|---|
+| 📄 **Word** | Documento con preguntas, imágenes y la correcta marcada. Versión **con** o **sin** respuestas (para imprimir y responder a mano). |
+| 🖨️ **PDF** | Igual que Word, en PDF. Con o sin respuestas. |
+| 🧠 **RemNote MCQ** | ZIP en Markdown listo para importar como tarjetas de opción múltiple. |
+| 🃏 **Anki (.apkg)** | Mazo con nota interactiva: opciones barajadas cada repaso, feedback verde/rojo, modo claro y oscuro. |
+| 🎯 **Quiz interactivo** | Mini-app HTML autocontenida: elige tests, navega, feedback inmediato, cuadrícula de progreso y resultado final con porcentaje. **Funciona offline en cualquier navegador.** |
+| 🖼️ **Imágenes** | ZIP con todas las imágenes nombradas por test. |
+
+Con varios tests puedes descargar además un **ZIP con un archivo por test**
+(carpetas `Con_Respuesta/` y `Sin_Respuesta/`).
 
 ---
 
 ## Instalar en local (opcional)
 
-Si prefieres ejecutarla en tu propio ordenador, usa el instalador de un solo comando para tu sistema.
-
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/JanitorHead/omnitest/main/install.ps1 | iex
 ```
 
-> Si PowerShell muestra un error de politica de ejecucion, ejecuta primero:
-> ```powershell
-> Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-> ```
+> Si PowerShell se queja de la política de ejecución, ejecuta primero:
+> `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
 
 ### macOS / Linux (Terminal)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/JanitorHead/extractor-daypo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/JanitorHead/omnitest/main/install.sh | bash
 ```
 
-> El script detecta automaticamente tu distribucion (Debian/Ubuntu, Fedora/RHEL, Arch) e instala Python con el gestor de paquetes correspondiente.
+El instalador descarga el proyecto, instala Python (si falta) y las dependencias,
+y abre Omnitest en tu navegador.
+
+### Manual
+
+```bash
+git clone https://github.com/JanitorHead/omnitest.git
+cd omnitest
+pip install -r requirements.txt
+streamlit run app.py
+```
 
 ---
 
-## Que hace?
+## La IA y los errores de cuota (429)
 
-Dado uno o varios enlaces de Daypo (o cualquier texto que los contenga), la herramienta:
+La importación con IA usa la **API de Gemini** con tu propia clave (gratuita en
+[aistudio.google.com](https://aistudio.google.com)). El tier gratuito tiene
+límites por modelo que **a veces son 0** según tu cuenta o región.
 
-1. Detecta automaticamente los enlaces de Daypo en el texto pegado.
-2. Se conecta a la API interna de Daypo y descifra cual es la respuesta correcta de cada pregunta.
-3. Descarga las imagenes asociadas a cada pregunta.
-4. Genera tres tipos de exportacion con un solo clic:
+Si ves un error **429**:
 
-| Exportacion | Descripcion |
-|---|---|
-| **ZIP Word** | Un `.docx` por test con enunciados en negrita, imagenes incrustadas y la opcion correcta marcada en verde. Incluye un documento unificado si hay varios tests. |
-| **ZIP RemNote MCQ** | Markdown con sintaxis `>>A)` listo para importar en RemNote (Import → Markdown). Preguntas en negrita, imagenes en linea. |
-| **Anki (.apkg)** | Mazo con tipo de nota MCQ interactivo: botones clicables, orden aleatorio en cada repaso, feedback verde/rojo al girar. Compatible con modo claro y oscuro. |
-
----
-
-## Uso
-
-1. Pega tus enlaces de Daypo en el cuadro de texto. Puedes pegar los enlaces directamente, uno por linea, o cualquier texto que los contenga (correos, documentos, listas...).
-2. La app muestra en tiempo real cuantos enlaces ha detectado.
-3. Pulsa **Iniciar Extraccion**.
-4. Cuando termine, descarga el formato que necesites.
+1. Pulsa **🩺 Diagnóstico de modelos** — prueba cada modelo y te dice cuál
+   funciona ahora mismo en tu cuenta.
+2. **Cambia de modelo:** cada uno tiene cuota independiente. Evita los `preview`.
+3. Si ninguno funciona, **activa facturación** en Google AI Studio: es pago por
+   uso (céntimos por examen) y los límites suben enormemente. *Tener créditos no
+   equivale a tener pago activo.*
 
 ---
 
-## Como importar en RemNote
+## Cómo importar los formatos
 
-1. Descarga **Daypo_RemNote_MCQ.zip**.
-2. RemNote → icono de ajustes → **Importar** → **Markdown** → sube el ZIP.
-3. Los tests apareceran como documentos con tarjetas MCQ e imagenes incrustadas.
-4. RemNote baraja el orden de las opciones al practicar.
+**RemNote:** descarga el ZIP → ajustes → Importar → Markdown → sube el ZIP.
 
-## Como importar en Anki
+**Anki:** doble clic en el `.apkg`. Las opciones salen barajadas en cada repaso;
+clic para elegir, Espacio para revelar; el orden no cambia al girar la carta.
 
-1. Descarga **Daypo_Anki.apkg**.
-2. Abre Anki → **Archivo** → **Importar** → selecciona el archivo.
-3. Se crea el mazo **Daypo Extractor** con el tipo de nota **Daypo MCQ Interactive**.
-4. Anverso: enunciado + imagen + opciones en orden aleatorio. Reverso: respuesta correcta en verde, eleccion incorrecta en rojo.
+**Quiz:** abre el `.html` en cualquier navegador. Elige tests, responde (feedback
+inmediato), navega con la cuadrícula y mira tu porcentaje al final. Guarda el
+progreso en el navegador.
 
 ---
 
-## Archivos del proyecto
+## Estructura del proyecto
 
-| Archivo | Descripcion |
-|---|---|
-| `daypo_extractor.py` | Aplicacion principal (Streamlit) |
-| `requirements.txt` | Dependencias para Streamlit Cloud y entornos virtuales |
-| `install.ps1` | Instalador one-liner para Windows (PowerShell) |
-| `install.sh` | Instalador one-liner para macOS y Linux (bash) |
-| `windows_launcher.bat` | Lanzador alternativo para Windows (requiere Python instalado) |
-| `macos_launcher.command` | Lanzador alternativo para macOS (requiere Python instalado) |
-| `linux_launcher.sh` | Lanzador alternativo para Linux (requiere Python instalado) |
+```
+app.py                 Punto de entrada (Streamlit)
+src/
+  __init__.py          Metadatos de la app
+  utils.py             Nombres de archivo y utilidades comunes
+  daypo.py             Extracción de tests de Daypo
+  ai_import.py         Importación con IA (Gemini, REST)
+  exporters.py         Word, PDF, RemNote, Anki, imágenes + orquestación
+  quiz.py              Generador del quiz interactivo HTML
+  ui.py                Componentes de interfaz (Streamlit)
+requirements.txt       Dependencias
+install.ps1 / .sh      Instaladores de un comando
+*_launcher.*           Lanzadores locales (Windows / macOS / Linux)
+```
 
 ---
 
-## Notas tecnicas
+## Notas técnicas
 
-- La herramienta accede al endpoint `/asps/load.php` de Daypo, el mismo que usa el navegador al cargar un test.
-- Las imagenes se descargan desde `https://www.daypo.com/testimages/{prefijo}/{id}_{num}.jpg`.
-- La respuesta correcta esta codificada en el XML mediante una mascara numerica (ej: `2111` indica que la primera opcion es la correcta).
-- Uso responsable: esta herramienta es para uso personal y educativo. Respeta los Terminos de Uso de Daypo y los derechos de autor de los creadores de los tests.
+- **Daypo:** se usa el endpoint `/asps/load.php` (el mismo que el navegador). La
+  respuesta correcta va codificada en una máscara numérica del XML.
+- **IA:** llamada directa al REST API de Gemini (`v1`/`v1beta`), sin SDK de Google.
+  Reintentos con backoff + jitter ante 429 y manejo de modelos *thinking*.
+- **Uso responsable:** herramienta para uso personal y educativo. Respeta los
+  términos de Daypo y los derechos de autor de los creadores de los tests.
