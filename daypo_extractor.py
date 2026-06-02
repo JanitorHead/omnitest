@@ -639,13 +639,22 @@ def _texto_de_docx(datos: bytes) -> str:
     return "\n".join(lineas)
 
 
+# Modelos ESTABLES primero (mejor cuota en tier gratuito). Los 'preview'/'exp'
+# suelen tener cuota 0 en cuentas gratuitas — se ofrecen pero con advertencia.
 _MODELOS_GEMINI = [
     "gemini-2.0-flash",
-    "gemini-2.5-flash-preview-05-20",
     "gemini-2.0-flash-lite",
     "gemini-1.5-flash-latest",
+    "gemini-1.5-flash-8b-latest",
     "gemini-1.5-pro-latest",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
 ]
+
+
+def _es_preview(modelo: str) -> bool:
+    m = modelo.lower()
+    return "preview" in m or "-exp" in m or "experimental" in m
 
 _PROMPT_CORRECCION = """\
 Aqui tienes el JSON actual con las preguntas extraidas:
@@ -748,6 +757,7 @@ def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
     partes: lista de str (texto) o dict {"mime_type": str, "data": bytes}
     """
     import time
+    import random
 
     def _log(msg: str):
         if log:
@@ -852,8 +862,10 @@ def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
                     )
 
                 if intento < len(esperas) - 1:
-                    espera = esperas[intento]
-                    _log(f"⏳ Rate limit por minuto (429). Esperando {espera}s antes de reintentar...")
+                    # Backoff exponencial + jitter (suaviza ráfagas mejor que el lineal)
+                    espera = esperas[intento] + round(random.uniform(0, 3), 1)
+                    _log(f"⏳ Rate limit por minuto (429). Esperando {espera}s "
+                         f"(backoff + jitter) antes de reintentar...")
                     time.sleep(espera)
                     continue
                 raise requests.HTTPError(
@@ -1337,15 +1349,18 @@ with tab_ia:
         if diagnostico:
             st.session_state["ia_api_key"] = api_key
             modelos_a_probar = st.session_state["ia_modelos_disponibles"] or _MODELOS_GEMINI
+            # Probar primero los estables (no preview): más probable que funcionen
+            modelos_a_probar = sorted(modelos_a_probar, key=lambda m: (_es_preview(m), m))
             resultados = []
             with st.status("Probando cada modelo con un ping mínimo...", expanded=True) as est:
                 for m in modelos_a_probar:
-                    est.write(f"⏳ Probando `{m}`...")
+                    etiqueta = f"`{m}`" + (" _(preview)_" if _es_preview(m) else "")
+                    est.write(f"⏳ Probando {etiqueta}...")
                     estado_m, detalle_m = diagnosticar_modelo(api_key, m)
                     if estado_m == "ok":
                         st.session_state["ia_requests_sesion"] += 1
                     icono = {"ok": "✅", "cuota": "🚫", "no_existe": "❔", "error": "⚠️"}.get(estado_m, "•")
-                    est.write(f"{icono} `{m}` — {detalle_m}")
+                    est.write(f"{icono} {etiqueta} — {detalle_m}")
                     resultados.append((m, estado_m, detalle_m))
                 est.update(label="Diagnóstico completado", state="complete")
             st.session_state["ia_diagnostico"] = resultados
@@ -1355,12 +1370,22 @@ with tab_ia:
             ok_models = [m for m, e, _ in st.session_state["ia_diagnostico"] if e == "ok"]
             if ok_models:
                 st.success(f"✅ Modelos que funcionan AHORA: {', '.join(f'`{m}`' for m in ok_models)}")
+                # Auto-seleccionar el primer modelo estable que funcione
+                estables_ok = [m for m in ok_models if not _es_preview(m)]
+                if estables_ok and st.session_state["ia_modelo"] not in ok_models:
+                    st.session_state["ia_modelo"] = estables_ok[0]
             else:
                 st.error(
-                    "🚫 **Ningún modelo respondió OK.** Si todos dan 'cuota CERO', tu cuenta no "
-                    "tiene acceso al tier gratuito de la API (común en algunas regiones/cuentas "
-                    "nuevas). Necesitas **activar facturación** en aistudio.google.com — el pago "
-                    "por uso es céntimos por examen."
+                    "🚫 **Ningún modelo respondió OK.** Esto casi siempre significa que tu cuenta "
+                    "está en **tier de créditos/gratuito**, que comparte cuota con todo el mundo y "
+                    "a menudo da `quota 0`.\n\n"
+                    "**Solución real** (confirmada por muchos usuarios): añade un **método de pago "
+                    "real** en tu proyecto de Google Cloud. El salto de cuota es enorme y solo pagas "
+                    "por uso (céntimos por examen). Tener créditos NO es lo mismo que tener pago activo.\n\n"
+                    "- Activar pago: [aistudio.google.com](https://aistudio.google.com) → Get API key → Billing\n"
+                    "- Ver tus cuotas reales: "
+                    "[consola de cuotas de Gemini](https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas) "
+                    "(filtra por *has limit*)"
                 )
 
         # Lista de modelos: dinámica si se verificó, si no la fija como fallback
@@ -1490,12 +1515,20 @@ with tab_ia:
 - **Correcta:** Gemini detecta asteriscos (*), letras circuladas, (C), subrayados, marcas de lápiz, etc.
 
 **Si recibes error de cuota (429):**
-- El tier **gratuito** tiene un límite **diario** de peticiones por modelo (a veces tan bajo como
-  ~50 al día). Si lo agotas, **reintentar no sirve hasta el día siguiente**.
-- **Cambia de modelo** en el selector: cada modelo tiene su propia cuota diaria independiente.
-- Pulsa **🔍 Verificar key** para ver exactamente qué modelos tiene disponibles tu cuenta.
-- **Solución definitiva:** activa facturación en
-  [aistudio.google.com](https://aistudio.google.com) → es pago por uso y procesar exámenes
-  cuesta céntimos, pero los límites suben muchísimo.
-- Consulta tu uso actual en [ai.dev/rate-limit](https://ai.dev/rate-limit).
+- Usa **🩺 Diagnóstico de modelos** para ver al instante cuáles funcionan en tu cuenta.
+- **Evita modelos `preview`** (gemini-2.5-*-preview, etc.): casi siempre tienen **cuota 0** en
+  tier gratuito. Usa los estables: `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-1.5-flash`.
+- **Cambia de modelo:** cada uno tiene su propia cuota independiente.
+
+**Por qué falla aunque no hayas usado la API (importante):**
+- El tier **gratuito / de créditos** comparte cuota con todo el mundo y Google le asigna límites
+  muy bajos (a veces **0**). Por eso da 429 al primer intento. **No es un fallo de esta app** —
+  es el plan de tu cuenta.
+- Tener **créditos** de Google Cloud **NO** es lo mismo que tener **pago activo**: los créditos
+  siguen en tier bajo.
+- **Solución real y barata:** añade un **método de pago real** en tu proyecto. El salto de cuota
+  es enorme y solo pagas por uso (procesar un examen cuesta céntimos).
+  → [aistudio.google.com](https://aistudio.google.com) → Get API key → Set up Billing.
+- Ver tus límites reales (filtra por *has limit*):
+  [consola de cuotas de Gemini](https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas).
 """)
