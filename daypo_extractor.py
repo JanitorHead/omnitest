@@ -622,9 +622,15 @@ Devuelve SOLO JSON valido, sin ningun texto adicional, con esta estructura exact
 }
 Reglas:
 - Limpia artefactos OCR, mal encoding y caracteres extraños
-- La opcion correcta puede estar marcada con asterisco (*), letra circulada, subrayado, (C), flecha, o cualquier marca. Identifícala y elimina la marca del texto
-- Si no puedes identificar la correcta con seguridad, omite esa pregunta
 - Extrae absolutamente TODAS las preguntas de TODAS las fuentes, sin excepcion
+- IMPORTANTE sobre la respuesta correcta:
+  * Si la correcta ESTÁ marcada (asterisco *, letra circulada, subrayado, (C), flecha,
+    negrita, color, "respuesta: X", etc.), úsala y elimina la marca del texto.
+  * Si NINGUNA opción está marcada como correcta, DEDUCE TÚ la respuesta correcta
+    usando tu conocimiento experto sobre la materia. SIEMPRE debes elegir una opción
+    como correcta — son preguntas tipo test con una única respuesta válida.
+  * NUNCA dejes una pregunta fuera por no estar marcada: razónala y respóndela tú.
+- El campo "correcta" SIEMPRE debe contener una de las opciones (nunca vacío).
 - El titulo debe ser descriptivo (ej: "Traumatologia Tema 1", "Bioquimica Parcial 2024")
 """
 
@@ -1472,10 +1478,13 @@ with tab_ia:
                            f"· La cuota se ve en [ai.dev/rate-limit](https://ai.dev/rate-limit)")
 
         texto_input = st.text_area(
-            "Texto (opcional) — pega preguntas directamente aquí:",
+            "Texto (opcional) — pega preguntas (con o sin la respuesta marcada):",
             height=160,
-            placeholder="1. ¿Cuál es el tratamiento?\n* Opción A  ← correcta\nOpción B\nOpción C",
+            placeholder=("Pega preguntas tipo test. Si no marcas la correcta, la IA la "
+                         "deduce.\n\n1. ¿Cuál es el tratamiento?\na) Opción A\nb) Opción B\nc) Opción C"),
         )
+        st.caption("ℹ️ Si las preguntas no traen marcada la respuesta correcta, la IA la "
+                   "deducirá. Revísalas después en el chat de correcciones por si acaso.")
 
         archivos = st.file_uploader(
             "Archivos (opcional) — imágenes, PDFs o Word (varios a la vez):",
@@ -1575,7 +1584,13 @@ with tab_ia:
 - **Todo a la vez:** combina texto + fotos + PDF + Word en una sola operación.
 - **PDFs escaneados:** se envían directamente a Gemini para OCR.
 - **Word (.docx):** el texto se extrae antes de enviarlo.
-- **Correcta:** Gemini detecta asteriscos (*), letras circuladas, (C), subrayados, marcas de lápiz, etc.
+- **Respuesta correcta:** si viene marcada (*, círculo, (C), subrayado, "respuesta: X"…),
+  la IA la usa. **Si NO viene marcada, la IA la deduce** con su conocimiento.
+- **Para casos clínicos o preguntas difíciles** donde la IA debe razonar la respuesta,
+  usa un modelo más potente (`gemini-2.5-flash` o `gemini-2.5-pro`) en vez del lite.
+  El `flash-lite` es más rápido pero acierta menos en razonamiento experto.
+- **Revisa siempre** las respuestas deducidas en el **chat de correcciones** antes de
+  generar los archivos — puedes corregir cualquier fallo en lenguaje natural.
 
 **Si recibes error de cuota (429):**
 - Usa **🩺 Diagnóstico de modelos** para ver al instante cuáles funcionan en tu cuenta.
