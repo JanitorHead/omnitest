@@ -659,53 +659,92 @@ SOLO devuelve JSON valido, sin ningun texto adicional.
 """
 
 
-def _gemini_call(api_key: str, modelo: str, partes: list) -> str:
+def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
     """
-    Llama al REST API de Gemini con agresivo retry en 429.
+    Llama al REST API de Gemini con retry en 429.
     - Intenta v1 primero; si devuelve 404, reintenta con v1beta.
-    - En caso de 429: reintenta hasta 8 veces con backoff exponencial (3-120s).
+    - En caso de 429: reintenta con backoff exponencial (5-60s), máx 5 intentos.
+    - log: callable opcional que recibe mensajes de progreso en tiempo real.
     partes: lista de str (texto) o dict {"mime_type": str, "data": bytes}
     """
     import time
 
+    def _log(msg: str):
+        if log:
+            log(msg)
+
     headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
 
     parts_json = []
+    n_texto = n_img = n_pdf = 0
     for parte in partes:
         if isinstance(parte, str):
             parts_json.append({"text": parte})
+            n_texto += 1
         elif isinstance(parte, dict) and "data" in parte:
+            mime = parte["mime_type"]
             parts_json.append({
                 "inlineData": {
-                    "mimeType": parte["mime_type"],
+                    "mimeType": mime,
                     "data": base64.b64encode(parte["data"]).decode("utf-8"),
                 }
             })
+            if mime == "application/pdf":
+                n_pdf += 1
+            else:
+                n_img += 1
+
+    tam_kb = sum(len(p.get("inlineData", {}).get("data", "")) for p in parts_json) // 1024
+    _log(f"📦 Preparado: {n_texto} bloque(s) de texto, {n_img} imagen(es), "
+         f"{n_pdf} PDF(s) · {tam_kb} KB en base64")
 
     body = {"contents": [{"parts": parts_json}]}
+    esperas = [5, 10, 20, 40, 60]  # backoff entre reintentos por 429
 
     for version in ("v1", "v1beta"):
         url = (
             f"https://generativelanguage.googleapis.com/{version}"
             f"/models/{modelo}:generateContent"
         )
-        # Backoff exponencial: 3s, 6s, 12s, 24s, 48s, 96s, 120s, 120s
-        esperas = [3, 6, 12, 24, 48, 96, 120, 120]
         for intento in range(len(esperas)):
-            resp = requests.post(url, headers=headers, json=body, timeout=180)
+            _log(f"🌐 [{version}] Enviando petición a Gemini "
+                 f"(intento {intento + 1}/{len(esperas)})...")
+            t0 = time.time()
+            try:
+                resp = requests.post(url, headers=headers, json=body, timeout=120)
+            except requests.Timeout:
+                _log(f"⏱️ Timeout tras 120s en {version}. Reintentando...")
+                continue
+            dt = time.time() - t0
+
             if resp.status_code == 404:
+                _log(f"↪️ [{version}] Modelo no disponible (404). "
+                     f"Probando siguiente versión de API...")
                 break  # probar siguiente version de API
+
             if resp.status_code == 429:
                 if intento < len(esperas) - 1:
                     espera = esperas[intento]
+                    _log(f"⏳ Rate limit (429). Esperando {espera}s antes de reintentar "
+                         f"(tier gratuito: ~15 req/min)...")
                     time.sleep(espera)
                     continue
                 raise requests.HTTPError(
-                    "429 — El API de Gemini sigue al limite tras 8 intentos (2 min acumulados). "
-                    "El tier gratuito tiene ~15 req/min. Espera unos minutos y vuelve a intentarlo.",
+                    "429 — El API de Gemini sigue al limite tras varios intentos. "
+                    "El tier gratuito tiene ~15 req/min. Espera 1-2 minutos y reintenta.",
                     response=resp,
                 )
-            resp.raise_for_status()
+
+            if resp.status_code != 200:
+                # Mostrar el mensaje de error real de la API
+                try:
+                    err = resp.json().get("error", {}).get("message", resp.text[:200])
+                except Exception:
+                    err = resp.text[:200]
+                _log(f"❌ [{version}] HTTP {resp.status_code}: {err}")
+                resp.raise_for_status()
+
+            _log(f"✅ Respuesta recibida en {dt:.1f}s. Procesando JSON...")
             return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
     raise requests.HTTPError(
@@ -715,12 +754,12 @@ def _gemini_call(api_key: str, modelo: str, partes: list) -> str:
 
 
 def aplicar_correccion_gemini(api_key: str, modelo: str,
-                               datos_actuales: dict, peticion: str) -> dict:
+                               datos_actuales: dict, peticion: str, log=None) -> dict:
     prompt = _PROMPT_CORRECCION.format(
         json_actual=json.dumps(datos_actuales, ensure_ascii=False, indent=2),
         peticion=peticion,
     )
-    raw = _gemini_call(api_key, modelo, [prompt]).strip()
+    raw = _gemini_call(api_key, modelo, [prompt], log=log).strip()
     for marker in ["```json", "```"]:
         if marker in raw:
             raw = raw.split(marker, 1)[1].split("```")[0].strip()
@@ -729,12 +768,17 @@ def aplicar_correccion_gemini(api_key: str, modelo: str,
 
 
 def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
-                              texto: str = "", archivos: list | None = None) -> dict:
+                              texto: str = "", archivos: list | None = None,
+                              log=None) -> dict:
     """
     Llama directamente al REST API de Gemini v1 (sin SDK de Google).
     Los .docx se convierten a texto; PDFs e imágenes se envían como
     inline_data en base64 — formato nativo de la API REST.
     """
+    def _log(msg: str):
+        if log:
+            log(msg)
+
     partes: list = [_PROMPT_GEMINI]
     texto_acumulado = texto.strip()
 
@@ -742,14 +786,18 @@ def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
         datos = archivo.read()
         ext = archivo.name.rsplit(".", 1)[-1].lower()
         if ext in ("docx", "doc"):
+            _log(f"📄 Extrayendo texto de {archivo.name}...")
             try:
                 texto_doc = _texto_de_docx(datos)
                 texto_acumulado += f"\n\n--- {archivo.name} ---\n{texto_doc}"
-            except Exception:
-                pass
+                _log(f"   → {len(texto_doc)} caracteres extraídos de {archivo.name}")
+            except Exception as e:
+                _log(f"   ⚠️ No se pudo leer {archivo.name}: {e}")
         elif ext == "pdf":
+            _log(f"📎 Adjuntando PDF {archivo.name} ({len(datos)//1024} KB)...")
             partes.append({"mime_type": "application/pdf", "data": datos})
         elif ext in ("jpg", "jpeg", "png", "webp"):
+            _log(f"🖼️ Adjuntando imagen {archivo.name} ({len(datos)//1024} KB)...")
             mime = archivo.type or f"image/{ext.replace('jpg', 'jpeg')}"
             partes.append({"mime_type": mime, "data": datos})
 
@@ -759,7 +807,8 @@ def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
     if len(partes) == 1:
         raise ValueError("No hay contenido para procesar.")
 
-    raw = _gemini_call(api_key, modelo, partes).strip()
+    raw = _gemini_call(api_key, modelo, partes, log=log).strip()
+    _log("🔍 Parseando preguntas del JSON devuelto...")
     for marker in ["```json", "```"]:
         if marker in raw:
             raw = raw.split(marker, 1)[1].split("```")[0].strip()
@@ -1068,27 +1117,32 @@ with tab_ia:
         if correccion:
             st.session_state["ia_chat"].append({"role": "user", "content": correccion})
             respuesta = None
-            with st.spinner("Aplicando corrección (puede tardar si hay rate limit)..."):
+            with st.status("Aplicando corrección...", expanded=True) as estado:
+                def _log_chat(msg: str):
+                    estado.write(msg)
                 try:
                     nuevos_datos = aplicar_correccion_gemini(
-                        api_key_chat, modelo_chat, datos, correccion
+                        api_key_chat, modelo_chat, datos, correccion, log=_log_chat
                     )
                     st.session_state["ia_datos"] = nuevos_datos
                     n_nuevo = len(nuevos_datos.get("preguntas", []))
                     respuesta = f"Listo. Ahora hay **{n_nuevo} preguntas** en *{nuevos_datos.get('titulo', '')}*."
+                    estado.update(label="Corrección aplicada", state="complete")
                 except json.JSONDecodeError:
                     respuesta = "No pude aplicar la corrección (Gemini no devolvió JSON válido). Inténtalo de otra forma."
+                    estado.update(label="JSON inválido", state="error")
                 except requests.HTTPError as e:
+                    estado.update(label="Error de Gemini", state="error")
                     if "429" in str(e):
                         respuesta = (
-                            "⏳ **Rate limit golpeado** — Gemini reintentó durante 2 minutos pero el tier "
-                            "gratuito sigue al límite (~15 req/min). Espera un poco más y vuelve a intentarlo. "
-                            "Si es urgente, considera usar el modelo `gemini-2.0-flash` con menos conversaciones."
+                            "⏳ **Rate limit** — el tier gratuito sigue al límite (~15 req/min). "
+                            "Espera 1-2 minutos y vuelve a intentarlo."
                         )
                     else:
                         respuesta = f"Error de Gemini: {str(e)[:100]}"
                 except Exception as e:
                     respuesta = f"Error: {str(e)[:200]}"
+                    estado.update(label="Error", state="error")
 
             if respuesta:
                 st.session_state["ia_chat"].append({"role": "assistant", "content": respuesta})
@@ -1165,15 +1219,26 @@ with tab_ia:
         )
 
         if procesar_ia:
-            with st.spinner("Enviando a Gemini (puede tardar si hay rate limit)..."):
+            with st.status("Procesando con Gemini...", expanded=True) as estado:
+                mensajes: list[str] = []
+
+                def _log_ui(msg: str):
+                    mensajes.append(msg)
+                    estado.write(msg)
+
                 try:
                     datos = extraer_con_gemini_multi(
                         api_key, modelo=modelo_sel,
                         texto=texto_input, archivos=archivos,
+                        log=_log_ui,
                     )
                     if not datos.get("preguntas"):
+                        estado.update(label="Sin preguntas encontradas", state="error")
                         st.error("Gemini no encontró preguntas. Prueba con contenido más estructurado.")
                     else:
+                        n = len(datos["preguntas"])
+                        _log_ui(f"✅ {n} preguntas extraídas.")
+                        estado.update(label=f"{n} preguntas extraídas", state="complete")
                         st.session_state["ia_estado"] = "preview"
                         st.session_state["ia_datos"] = datos
                         st.session_state["ia_api_key"] = api_key
@@ -1181,14 +1246,15 @@ with tab_ia:
                         st.session_state["ia_chat"] = []
                         st.rerun()
                 except json.JSONDecodeError:
+                    estado.update(label="JSON inválido", state="error")
                     st.error("Gemini no devolvió JSON válido. Prueba dividiendo el contenido.")
                 except requests.HTTPError as e:
+                    estado.update(label="Error de Gemini", state="error")
                     err_msg = str(e)
                     if "429" in err_msg:
                         st.warning(
                             "⏳ **Rate limit** — El API de Gemini está al límite (~15 req/min en tier gratuito). "
-                            "La app reintentó durante 2 minutos pero sigue saturado. Espera 1-2 minutos y vuelve a intentarlo. "
-                            "\n\n**Alternativas:**\n"
+                            "Espera 1-2 minutos y vuelve a intentarlo.\n\n**Alternativas:**\n"
                             "- Reduce el contenido (menos imágenes, texto más corto).\n"
                             "- Usa el modelo `gemini-2.0-flash` que es más rápido."
                         )
@@ -1197,6 +1263,7 @@ with tab_ia:
                     else:
                         st.error(f"Error en Gemini: {err_msg[:200]}")
                 except Exception as e:
+                    estado.update(label="Error", state="error")
                     st.error(f"Error: {str(e)[:300]}")
 
         with st.expander("💡 Consejos"):
