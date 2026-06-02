@@ -696,6 +696,49 @@ def listar_modelos_gemini(api_key: str) -> list[str]:
     return sorted(modelos, key=_orden)
 
 
+def diagnosticar_modelo(api_key: str, modelo: str) -> tuple[str, str]:
+    """
+    Hace UNA petición mínima ('ping') a un modelo para saber si funciona.
+    Devuelve (estado, detalle): estado ∈ {"ok", "cuota", "no_existe", "error"}.
+    Consume 1 request de cuota SOLO si el modelo está disponible (si da 429
+    o 404 no cuenta como uso).
+    """
+    headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
+    body = {"contents": [{"parts": [{"text": "ping"}]}],
+            "generationConfig": {"maxOutputTokens": 1}}
+    ultimo = ("error", "sin respuesta")
+    for version in ("v1", "v1beta"):
+        url = f"https://generativelanguage.googleapis.com/{version}/models/{modelo}:generateContent"
+        try:
+            resp = requests.post(url, headers=headers, json=body, timeout=30)
+        except Exception as e:
+            ultimo = ("error", str(e)[:80])
+            continue
+        if resp.status_code == 200:
+            return ("ok", "Funciona ✓")
+        if resp.status_code == 404:
+            ultimo = ("no_existe", "no existe en esta API")
+            continue
+        if resp.status_code == 429:
+            qv = None
+            try:
+                for d in resp.json().get("error", {}).get("details", []):
+                    if "QuotaFailure" in d.get("@type", ""):
+                        for v in d.get("violations", []):
+                            qv = v.get("quotaValue", qv)
+            except Exception:
+                pass
+            if qv is not None and str(qv) == "0":
+                return ("cuota", "cuota CERO (no disponible en tu tier)")
+            return ("cuota", f"cuota agotada (límite {qv if qv is not None else '?'})")
+        try:
+            msg = resp.json().get("error", {}).get("message", "")[:80]
+        except Exception:
+            msg = resp.text[:80]
+        ultimo = ("error", f"HTTP {resp.status_code}: {msg}")
+    return ultimo
+
+
 def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
     """
     Llama al REST API de Gemini con retry en 429.
@@ -763,7 +806,8 @@ def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
                 # Extraer el mensaje y detalles reales de Google
                 msg_api = ""
                 es_diario = False
-                retry_delay = None
+                quota_value = None
+                quota_id = ""
                 try:
                     error_obj = resp.json().get("error", {})
                     msg_api = error_obj.get("message", "")
@@ -771,25 +815,39 @@ def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
                         tipo = detalle.get("@type", "")
                         if "QuotaFailure" in tipo:
                             for v in detalle.get("violations", []):
-                                qid = v.get("quotaId", "") + v.get("quotaMetric", "")
+                                quota_id = v.get("quotaId", "") or quota_id
+                                quota_value = v.get("quotaValue", quota_value)
+                                qid = quota_id + v.get("quotaMetric", "")
                                 if "PerDay" in qid or "per_day" in qid.lower():
                                     es_diario = True
-                        if "RetryInfo" in tipo:
-                            retry_delay = detalle.get("retryDelay", "")
                 except Exception:
                     msg_api = resp.text[:300]
 
+                if quota_id:
+                    _log(f"📊 Límite alcanzado: `{quota_id}` "
+                         f"(valor: {quota_value if quota_value is not None else '?'})")
                 if msg_api:
                     _log(f"📋 Google dice: {msg_api[:250]}")
+
+                # quotaValue == 0 → el modelo NO está disponible en este tier
+                if quota_value is not None and str(quota_value) == "0":
+                    _log("🚫 Este modelo tiene cuota CERO en tu tier — no está disponible.")
+                    raise requests.HTTPError(
+                        f"429-CERO — El modelo '{modelo}' tiene límite 0 en tu plan "
+                        f"(quota '{quota_id}'). NO es que lo hayas agotado: simplemente no está "
+                        "disponible en el tier gratuito para tu cuenta/región. "
+                        "Prueba OTRO modelo (pulsa Verificar key y prueba el Diagnóstico) "
+                        "o activa facturación.",
+                        response=resp,
+                    )
 
                 # Si es límite DIARIO, reintentar no sirve de nada
                 if es_diario:
                     _log("🚫 Límite DIARIO agotado — reintentar no ayudará hoy.")
                     raise requests.HTTPError(
-                        "429-DIARIO — Has agotado la cuota DIARIA gratuita de este modelo. "
-                        f"{msg_api[:200]} "
-                        "Soluciones: (1) espera hasta mañana, (2) prueba otro modelo del selector, "
-                        "(3) activa facturación en tu proyecto de Google AI Studio.",
+                        f"429-DIARIO — Cuota DIARIA agotada (quota '{quota_id}', "
+                        f"límite {quota_value}). {msg_api[:150]} "
+                        "Soluciones: prueba otro modelo, espera 24h, o activa facturación.",
                         response=resp,
                     )
 
@@ -950,7 +1008,8 @@ st.divider()
 for _k, _v in [("resultado", None), ("ia_estado", None),
                ("ia_datos", None), ("ia_chat", []),
                ("ia_api_key", ""), ("ia_modelo", "gemini-2.0-flash"),
-               ("ia_modelos_disponibles", None)]:
+               ("ia_modelos_disponibles", None),
+               ("ia_requests_sesion", 0), ("ia_diagnostico", None)]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
@@ -1194,6 +1253,7 @@ with tab_ia:
                     nuevos_datos = aplicar_correccion_gemini(
                         api_key_chat, modelo_chat, datos, correccion, log=_log_chat
                     )
+                    st.session_state["ia_requests_sesion"] += 1
                     st.session_state["ia_datos"] = nuevos_datos
                     n_nuevo = len(nuevos_datos.get("preguntas", []))
                     respuesta = f"Listo. Ahora hay **{n_nuevo} preguntas** en *{nuevos_datos.get('titulo', '')}*."
@@ -1249,11 +1309,13 @@ with tab_ia:
             help="Clave gratuita en [aistudio.google.com](https://aistudio.google.com)",
         )
 
-        col_modelo, col_verif = st.columns([3, 1])
+        col_verif, col_diag = st.columns(2)
         with col_verif:
-            st.write("")  # espaciador para alinear con el selectbox
             verificar = st.button("🔍 Verificar key", use_container_width=True,
                                   disabled=not bool(api_key))
+        with col_diag:
+            diagnostico = st.button("🩺 Diagnóstico de modelos", use_container_width=True,
+                                    disabled=not bool(api_key))
 
         if verificar:
             with st.spinner("Consultando modelos disponibles para tu API key..."):
@@ -1272,16 +1334,54 @@ with tab_ia:
                 except Exception as e:
                     st.error(f"❌ No se pudo verificar la key: {str(e)[:200]}")
 
+        if diagnostico:
+            st.session_state["ia_api_key"] = api_key
+            modelos_a_probar = st.session_state["ia_modelos_disponibles"] or _MODELOS_GEMINI
+            resultados = []
+            with st.status("Probando cada modelo con un ping mínimo...", expanded=True) as est:
+                for m in modelos_a_probar:
+                    est.write(f"⏳ Probando `{m}`...")
+                    estado_m, detalle_m = diagnosticar_modelo(api_key, m)
+                    if estado_m == "ok":
+                        st.session_state["ia_requests_sesion"] += 1
+                    icono = {"ok": "✅", "cuota": "🚫", "no_existe": "❔", "error": "⚠️"}.get(estado_m, "•")
+                    est.write(f"{icono} `{m}` — {detalle_m}")
+                    resultados.append((m, estado_m, detalle_m))
+                est.update(label="Diagnóstico completado", state="complete")
+            st.session_state["ia_diagnostico"] = resultados
+
+        # Mostrar resultados del último diagnóstico
+        if st.session_state["ia_diagnostico"]:
+            ok_models = [m for m, e, _ in st.session_state["ia_diagnostico"] if e == "ok"]
+            if ok_models:
+                st.success(f"✅ Modelos que funcionan AHORA: {', '.join(f'`{m}`' for m in ok_models)}")
+            else:
+                st.error(
+                    "🚫 **Ningún modelo respondió OK.** Si todos dan 'cuota CERO', tu cuenta no "
+                    "tiene acceso al tier gratuito de la API (común en algunas regiones/cuentas "
+                    "nuevas). Necesitas **activar facturación** en aistudio.google.com — el pago "
+                    "por uso es céntimos por examen."
+                )
+
         # Lista de modelos: dinámica si se verificó, si no la fija como fallback
         opciones_modelo = st.session_state["ia_modelos_disponibles"] or _MODELOS_GEMINI
-        with col_modelo:
-            idx = (opciones_modelo.index(st.session_state["ia_modelo"])
-                   if st.session_state["ia_modelo"] in opciones_modelo else 0)
-            modelo_sel = st.selectbox("Modelo:", options=opciones_modelo, index=idx)
+        modelo_sel = st.selectbox(
+            "Modelo:",
+            options=opciones_modelo,
+            index=(opciones_modelo.index(st.session_state["ia_modelo"])
+                   if st.session_state["ia_modelo"] in opciones_modelo else 0),
+        )
 
-        if st.session_state["ia_modelos_disponibles"] is None:
-            st.caption("💡 Pulsa **Verificar key** para cargar los modelos reales de tu cuenta "
-                       "y comprobar que la clave funciona.")
+        # Contador de uso de la sesión
+        col_info, col_reset = st.columns([3, 1])
+        with col_info:
+            if st.session_state["ia_modelos_disponibles"] is None:
+                st.caption("💡 Pulsa **Verificar key** para cargar tus modelos, o **Diagnóstico** "
+                           "para ver cuáles funcionan ahora mismo.")
+            else:
+                st.caption(f"🔢 Peticiones de generación hechas en esta sesión: "
+                           f"**{st.session_state['ia_requests_sesion']}** "
+                           f"· La cuota se ve en [ai.dev/rate-limit](https://ai.dev/rate-limit)")
 
         texto_input = st.text_area(
             "Texto (opcional) — pega preguntas directamente aquí:",
@@ -1327,6 +1427,7 @@ with tab_ia:
                         texto=texto_input, archivos=archivos,
                         log=_log_ui,
                     )
+                    st.session_state["ia_requests_sesion"] += 1
                     if not datos.get("preguntas"):
                         estado.update(label="Sin preguntas encontradas", state="error")
                         st.error("Gemini no encontró preguntas. Prueba con contenido más estructurado.")
@@ -1346,15 +1447,26 @@ with tab_ia:
                 except requests.HTTPError as e:
                     estado.update(label="Error de Gemini", state="error")
                     err_msg = str(e)
-                    if "429-DIARIO" in err_msg:
+                    if "429-CERO" in err_msg:
+                        st.error(
+                            "🚫 **Este modelo tiene cuota CERO en tu cuenta** — no es que lo hayas "
+                            "agotado, simplemente **no está disponible** en tu tier gratuito "
+                            "(habitual en cuentas nuevas o ciertas regiones).\n\n"
+                            "**Qué hacer:**\n"
+                            "1. Pulsa **🩺 Diagnóstico de modelos** para ver cuáles SÍ funcionan.\n"
+                            "2. Si ninguno funciona, **activa facturación** en "
+                            "[aistudio.google.com](https://aistudio.google.com) (céntimos por examen).\n\n"
+                            f"_{err_msg[:250]}_"
+                        )
+                    elif "429-DIARIO" in err_msg:
                         st.error(
                             "🚫 **Cuota DIARIA agotada** en este modelo del tier gratuito.\n\n"
                             "Reintentar hoy no servirá. Opciones:\n"
-                            "1. **Cambia de modelo** en el selector (cada modelo tiene su propia cuota diaria).\n"
+                            "1. **Cambia de modelo** (cada uno tiene su propia cuota diaria) — "
+                            "usa **🩺 Diagnóstico** para ver cuáles quedan.\n"
                             "2. **Espera a mañana** (la cuota se reinicia cada 24h).\n"
-                            "3. **Activa facturación** en [Google AI Studio](https://aistudio.google.com) "
-                            "(pago por uso, muy barato).\n\n"
-                            f"_Mensaje de Google: {err_msg.split('429-DIARIO — ')[-1][:300]}_"
+                            "3. **Activa facturación** en [Google AI Studio](https://aistudio.google.com).\n\n"
+                            f"_{err_msg.split('429-DIARIO — ')[-1][:300]}_"
                         )
                     elif "429" in err_msg:
                         st.warning(
