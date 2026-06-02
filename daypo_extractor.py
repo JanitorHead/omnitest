@@ -1067,7 +1067,8 @@ with tab_ia:
         )
         if correccion:
             st.session_state["ia_chat"].append({"role": "user", "content": correccion})
-            with st.spinner("Aplicando corrección..."):
+            respuesta = None
+            with st.spinner("Aplicando corrección (puede tardar si hay rate limit)..."):
                 try:
                     nuevos_datos = aplicar_correccion_gemini(
                         api_key_chat, modelo_chat, datos, correccion
@@ -1077,10 +1078,21 @@ with tab_ia:
                     respuesta = f"Listo. Ahora hay **{n_nuevo} preguntas** en *{nuevos_datos.get('titulo', '')}*."
                 except json.JSONDecodeError:
                     respuesta = "No pude aplicar la corrección (Gemini no devolvió JSON válido). Inténtalo de otra forma."
+                except requests.HTTPError as e:
+                    if "429" in str(e):
+                        respuesta = (
+                            "⏳ **Rate limit golpeado** — Gemini reintentó durante 2 minutos pero el tier "
+                            "gratuito sigue al límite (~15 req/min). Espera un poco más y vuelve a intentarlo. "
+                            "Si es urgente, considera usar el modelo `gemini-2.0-flash` con menos conversaciones."
+                        )
+                    else:
+                        respuesta = f"Error de Gemini: {str(e)[:100]}"
                 except Exception as e:
-                    respuesta = f"Error: {e}"
-            st.session_state["ia_chat"].append({"role": "assistant", "content": respuesta})
-            st.rerun()
+                    respuesta = f"Error: {str(e)[:200]}"
+
+            if respuesta:
+                st.session_state["ia_chat"].append({"role": "assistant", "content": respuesta})
+                st.rerun()
 
         st.markdown("---")
         col_gen, col_volver = st.columns(2)
@@ -1153,7 +1165,7 @@ with tab_ia:
         )
 
         if procesar_ia:
-            with st.spinner("Enviando a Gemini y extrayendo preguntas..."):
+            with st.spinner("Enviando a Gemini (puede tardar si hay rate limit)..."):
                 try:
                     datos = extraer_con_gemini_multi(
                         api_key, modelo=modelo_sel,
@@ -1170,8 +1182,22 @@ with tab_ia:
                         st.rerun()
                 except json.JSONDecodeError:
                     st.error("Gemini no devolvió JSON válido. Prueba dividiendo el contenido.")
+                except requests.HTTPError as e:
+                    err_msg = str(e)
+                    if "429" in err_msg:
+                        st.warning(
+                            "⏳ **Rate limit** — El API de Gemini está al límite (~15 req/min en tier gratuito). "
+                            "La app reintentó durante 2 minutos pero sigue saturado. Espera 1-2 minutos y vuelve a intentarlo. "
+                            "\n\n**Alternativas:**\n"
+                            "- Reduce el contenido (menos imágenes, texto más corto).\n"
+                            "- Usa el modelo `gemini-2.0-flash` que es más rápido."
+                        )
+                    elif "404" in err_msg:
+                        st.error("❌ El modelo seleccionado no existe. Prueba con `gemini-2.0-flash`.")
+                    else:
+                        st.error(f"Error en Gemini: {err_msg[:200]}")
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error: {str(e)[:300]}")
 
         with st.expander("💡 Consejos"):
             st.markdown("""
