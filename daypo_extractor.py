@@ -659,6 +659,43 @@ SOLO devuelve JSON valido, sin ningun texto adicional.
 """
 
 
+def listar_modelos_gemini(api_key: str) -> list[str]:
+    """
+    Consulta ListModels (NO consume cuota de generación) y devuelve los
+    nombres de modelos que soportan generateContent, disponibles para
+    esta API key concreta. Lanza excepción si la key es inválida.
+    """
+    headers = {"x-goog-api-key": api_key}
+    modelos: list[str] = []
+    ultimo_error = None
+    for version in ("v1beta", "v1"):
+        url = f"https://generativelanguage.googleapis.com/{version}/models"
+        try:
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            for m in resp.json().get("models", []):
+                if "generateContent" in m.get("supportedGenerationMethods", []):
+                    nombre = m["name"].replace("models/", "")
+                    if nombre not in modelos:
+                        modelos.append(nombre)
+            if modelos:
+                break
+        except Exception as e:
+            ultimo_error = e
+            continue
+    if not modelos and ultimo_error:
+        raise ultimo_error
+    # Ordenar: flash primero (más rápidos y con más cuota), luego el resto
+    def _orden(n: str):
+        return (
+            0 if "flash" in n and "lite" not in n else
+            1 if "lite" in n else
+            2 if "flash" in n else 3,
+            n,
+        )
+    return sorted(modelos, key=_orden)
+
+
 def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
     """
     Llama al REST API de Gemini con retry en 429.
@@ -912,7 +949,8 @@ st.divider()
 
 for _k, _v in [("resultado", None), ("ia_estado", None),
                ("ia_datos", None), ("ia_chat", []),
-               ("ia_api_key", ""), ("ia_modelo", "gemini-2.0-flash")]:
+               ("ia_api_key", ""), ("ia_modelo", "gemini-2.0-flash"),
+               ("ia_modelos_disponibles", None)]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
@@ -1204,21 +1242,46 @@ with tab_ia:
             "en una sola llamada — Gemini extrae y unifica todas las preguntas."
         )
 
-        col_key, col_modelo = st.columns([2, 1])
-        with col_key:
-            api_key = st.text_input(
-                "Clave API de Gemini:",
-                type="password",
-                value=st.session_state["ia_api_key"],
-                help="Clave gratuita en [aistudio.google.com](https://aistudio.google.com)",
-            )
+        api_key = st.text_input(
+            "Clave API de Gemini:",
+            type="password",
+            value=st.session_state["ia_api_key"],
+            help="Clave gratuita en [aistudio.google.com](https://aistudio.google.com)",
+        )
+
+        col_modelo, col_verif = st.columns([3, 1])
+        with col_verif:
+            st.write("")  # espaciador para alinear con el selectbox
+            verificar = st.button("🔍 Verificar key", use_container_width=True,
+                                  disabled=not bool(api_key))
+
+        if verificar:
+            with st.spinner("Consultando modelos disponibles para tu API key..."):
+                try:
+                    modelos = listar_modelos_gemini(api_key)
+                    if modelos:
+                        st.session_state["ia_modelos_disponibles"] = modelos
+                        st.session_state["ia_api_key"] = api_key
+                        st.success(f"✅ API key válida. {len(modelos)} modelos disponibles.")
+                    else:
+                        st.warning("La key es válida pero no devolvió modelos con generateContent.")
+                except requests.HTTPError as e:
+                    code = getattr(e.response, "status_code", "?")
+                    st.error(f"❌ API key rechazada (HTTP {code}). Revisa que la copiaste completa "
+                             "y que está activa en aistudio.google.com.")
+                except Exception as e:
+                    st.error(f"❌ No se pudo verificar la key: {str(e)[:200]}")
+
+        # Lista de modelos: dinámica si se verificó, si no la fija como fallback
+        opciones_modelo = st.session_state["ia_modelos_disponibles"] or _MODELOS_GEMINI
         with col_modelo:
-            modelo_sel = st.selectbox(
-                "Modelo:",
-                options=_MODELOS_GEMINI,
-                index=_MODELOS_GEMINI.index(st.session_state["ia_modelo"])
-                      if st.session_state["ia_modelo"] in _MODELOS_GEMINI else 0,
-            )
+            idx = (opciones_modelo.index(st.session_state["ia_modelo"])
+                   if st.session_state["ia_modelo"] in opciones_modelo else 0)
+            modelo_sel = st.selectbox("Modelo:", options=opciones_modelo, index=idx)
+
+        if st.session_state["ia_modelos_disponibles"] is None:
+            st.caption("💡 Pulsa **Verificar key** para cargar los modelos reales de tu cuenta "
+                       "y comprobar que la clave funciona.")
 
         texto_input = st.text_area(
             "Texto (opcional) — pega preguntas directamente aquí:",
@@ -1306,12 +1369,21 @@ with tab_ia:
                     estado.update(label="Error", state="error")
                     st.error(f"Error: {str(e)[:300]}")
 
-        with st.expander("💡 Consejos"):
+        with st.expander("💡 Consejos y solución de problemas"):
             st.markdown("""
-- **Modelo:** `gemini-2.0-flash` es el más rápido y disponible en cuentas gratuitas.
+**Uso normal:**
 - **Todo a la vez:** combina texto + fotos + PDF + Word en una sola operación.
 - **PDFs escaneados:** se envían directamente a Gemini para OCR.
 - **Word (.docx):** el texto se extrae antes de enviarlo.
 - **Correcta:** Gemini detecta asteriscos (*), letras circuladas, (C), subrayados, marcas de lápiz, etc.
-- Si falla con mucho contenido, divide en partes y procesa por separado.
+
+**Si recibes error de cuota (429):**
+- El tier **gratuito** tiene un límite **diario** de peticiones por modelo (a veces tan bajo como
+  ~50 al día). Si lo agotas, **reintentar no sirve hasta el día siguiente**.
+- **Cambia de modelo** en el selector: cada modelo tiene su propia cuota diaria independiente.
+- Pulsa **🔍 Verificar key** para ver exactamente qué modelos tiene disponibles tu cuenta.
+- **Solución definitiva:** activa facturación en
+  [aistudio.google.com](https://aistudio.google.com) → es pago por uso y procesar exámenes
+  cuesta céntimos, pero los límites suben muchísimo.
+- Consulta tu uso actual en [ai.dev/rate-limit](https://ai.dev/rate-limit).
 """)
