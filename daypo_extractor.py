@@ -661,9 +661,9 @@ SOLO devuelve JSON valido, sin ningun texto adicional.
 
 def _gemini_call(api_key: str, modelo: str, partes: list) -> str:
     """
-    Llama al REST API de Gemini.
+    Llama al REST API de Gemini con agresivo retry en 429.
     - Intenta v1 primero; si devuelve 404, reintenta con v1beta.
-    - En caso de 429 (rate limit) reintenta hasta 3 veces con espera exponencial.
+    - En caso de 429: reintenta hasta 8 veces con backoff exponencial (3-120s).
     partes: lista de str (texto) o dict {"mime_type": str, "data": bytes}
     """
     import time
@@ -689,18 +689,20 @@ def _gemini_call(api_key: str, modelo: str, partes: list) -> str:
             f"https://generativelanguage.googleapis.com/{version}"
             f"/models/{modelo}:generateContent"
         )
-        for intento in range(3):
+        # Backoff exponencial: 3s, 6s, 12s, 24s, 48s, 96s, 120s, 120s
+        esperas = [3, 6, 12, 24, 48, 96, 120, 120]
+        for intento in range(len(esperas)):
             resp = requests.post(url, headers=headers, json=body, timeout=180)
             if resp.status_code == 404:
                 break  # probar siguiente version de API
             if resp.status_code == 429:
-                if intento < 2:
-                    time.sleep(2 ** intento + 1)  # 2s, 3s
+                if intento < len(esperas) - 1:
+                    espera = esperas[intento]
+                    time.sleep(espera)
                     continue
                 raise requests.HTTPError(
-                    "429 — Demasiadas peticiones al API de Gemini. "
-                    "Espera unos segundos y vuelve a intentarlo "
-                    "(el tier gratuito tiene limite de ~15 req/min).",
+                    "429 — El API de Gemini sigue al limite tras 8 intentos (2 min acumulados). "
+                    "El tier gratuito tiene ~15 req/min. Espera unos minutos y vuelve a intentarlo.",
                     response=resp,
                 )
             resp.raise_for_status()
