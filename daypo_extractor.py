@@ -539,25 +539,41 @@ function renderQuiz(){
   const optsHtml=opts.map((o,i)=>{let c='opt';if(isRev){if(i===ci)c+=' ok';else if(i===cho[cur])c+=' bad';}else if(i===cho[cur])c+=' sel';return`<button class="${c}"${isRev?' disabled':''} onclick="pick(${i})">${o}</button>`;}).join('');
   const navHtml=isRev
     ?`<button class="btn btn-prev" onclick="prev()"${cur===0?' disabled':''}>&larr;</button><span style="flex:1"></span><button class="btn btn-next" onclick="next()">${cur<qs.length-1?'Siguiente &rarr;':'Ver resultado &rarr;'}</button>`
-    :`<button class="btn btn-prev" onclick="prev()"${cur===0?' disabled':''}>&larr;</button><button class="btn btn-skip" onclick="skipQ()">Saltar</button><button class="btn btn-show" onclick="reveal()">Mostrar<span class="kbd">Esp</span></button><button class="btn btn-next" onclick="next()"${cur>=qs.length-1?' disabled':''}>&rarr;</button>`;
+    :`<button class="btn btn-prev" onclick="prev()"${cur===0?' disabled':''}>&larr;</button><span style="flex:1"></span><button class="btn btn-skip" onclick="skipQ()">Saltar sin responder &rarr;</button>`;
   const gridHtml=qs.map((_,i)=>{let c='gq';if(ans[i]==='correct')c+=' ok';else if(ans[i]==='wrong')c+=' bad';if(i===cur)c+=' cur';return`<button class="${c}" onclick="goTo(${i})">${i+1}</button>`;}).join('');
   const pct=qs.length?Math.round(cur/qs.length*100):0;
   app.innerHTML=`<div class="hdr"><span class="hdr-title">${TITULO}</span><span class="hdr-score">${score()}/${done()}</span></div><div class="pbar"><div class="pfill" style="width:${pct}%"></div></div><div class="main"><div class="quiz-area"><div class="card"><div class="qnum">Pregunta ${cur+1} / ${qs.length}</div><div class="qtext">${q.q}</div>${imgHtml}<div class="opts">${optsHtml}</div><div class="navbar">${navHtml}</div></div></div><div class="grid-panel"><div class="gp-title">Preguntas</div><div class="grid">${gridHtml}</div><div class="legend"><div class="li"><div class="ld" style="background:#0f172a;outline:1px solid #334155"></div>Sin responder</div><div class="li"><div class="ld" style="background:#15803d"></div>Correcta</div><div class="li"><div class="ld" style="background:#b91c1c"></div>Incorrecta</div></div>${MULTI?`<button class="btn-change" onclick="renderSelect()">Cambiar tests</button>`:''}</div></div>`;
 }
-function pick(i){if(rev[cur])return;cho[cur]=i;renderQuiz();}
-function reveal(){if(rev[cur])return;rev[cur]=true;const ci=qs[cur]._opts.indexOf(qs[cur].correct);ans[cur]=(cho[cur]===ci)?'correct':'wrong';save();renderQuiz();}
+function pick(i){if(rev[cur])return;cho[cur]=i;rev[cur]=true;const ci=qs[cur]._opts.indexOf(qs[cur].correct);ans[cur]=(i===ci)?'correct':'wrong';save();renderQuiz();}
 function prev(){if(cur>0){cur--;renderQuiz();}}
-function next(){if(cur<qs.length-1){cur++;renderQuiz();}else if(done()===qs.length)renderEnd();}
+function next(){if(cur<qs.length-1){cur++;renderQuiz();}else{renderEnd();}}
 function goTo(i){cur=i;renderQuiz();}
 function skipQ(){for(let i=cur+1;i<qs.length;i++){if(!rev[i]){cur=i;renderQuiz();return;}}for(let i=0;i<cur;i++){if(!rev[i]){cur=i;renderQuiz();return;}}renderEnd();}
-function renderEnd(){const tot=done(),sc=score(),p=tot?Math.round(sc/tot*100):0;app.innerHTML=`<div class="card end"><div class="end-pct">${p}%</div><div class="end-sub">${sc} de ${tot} respondidas correctamente</div><div class="end-btns"><button class="btn-restart" onclick="restart()">&#x1F504; De nuevo</button>${MULTI?`<button class="btn-restart" style="background:#334155" onclick="renderSelect()">Cambiar tests</button>`:''}</div></div>`;}
+function renderEnd(){
+  const tot=qs.length,sc=score(),resp=done(),fallos=resp-sc,sinResp=tot-resp;
+  const p=tot?Math.round(sc/tot*100):0;
+  const chip=(bg,col,txt)=>`<div style="background:${bg};color:${col};padding:10px 18px;border-radius:10px;font-weight:700;font-size:14px">${txt}</div>`;
+  app.innerHTML=`<div class="card end">
+    <div class="end-pct">${p}%</div>
+    <div class="end-sub">${sc} de ${tot} preguntas acertadas</div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:28px">
+      ${chip('#14532d','#bbf7d0','✓ '+sc+' aciertos')}
+      ${chip('#7f1d1d','#fecaca','✗ '+fallos+' fallos')}
+      ${sinResp>0?chip('#334155','#cbd5e1','— '+sinResp+' sin responder'):''}
+    </div>
+    <div class="end-btns">
+      <button class="btn-restart" onclick="restart()">&#x1F504; Repetir quiz</button>
+      ${sinResp>0?`<button class="btn-restart" style="background:#475569" onclick="goPending()">Ir a sin responder</button>`:''}
+      ${MULTI?`<button class="btn-restart" style="background:#334155" onclick="renderSelect()">Cambiar tests</button>`:''}
+    </div>
+  </div>`;
+}
+function goPending(){for(let i=0;i<qs.length;i++){if(!rev[i]){cur=i;renderQuiz();return;}}}
 function restart(){buildQuestions(selIdx);save();renderQuiz();}
 document.addEventListener('keydown',e=>{
   if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
-  if(e.code==='Space'){e.preventDefault();if(!rev[cur])reveal();}
-  if(e.code==='ArrowLeft')prev();
-  if(e.code==='ArrowRight'&&rev[cur])next();
-  if(e.key==='s'||e.key==='S')skipQ();
+  if(e.code==='ArrowLeft'){e.preventDefault();prev();}
+  if(e.code==='ArrowRight'||e.code==='Space'){e.preventDefault();if(rev[cur])next();else skipQ();}
   const n=parseInt(e.key);if(!isNaN(n)&&n>=1&&n<=9&&!rev[cur])pick(n-1);
 });
 (function(){if(MULTI&&!loadSaved()){renderSelect();}else{if(!loadSaved())buildQuestions(selIdx);renderQuiz();}})();
