@@ -641,13 +641,15 @@ def _texto_de_docx(datos: bytes) -> str:
 
 # Modelos ESTABLES primero (mejor cuota en tier gratuito). Los 'preview'/'exp'
 # suelen tener cuota 0 en cuentas gratuitas — se ofrecen pero con advertencia.
+# 'flash-lite' va primero: rápido, sin 'thinking' pesado y con cuota más amplia.
 _MODELOS_GEMINI = [
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
     "gemini-1.5-flash-latest",
-    "gemini-1.5-flash-8b-latest",
-    "gemini-1.5-pro-latest",
-    "gemini-2.5-flash",
     "gemini-2.5-pro",
 ]
 
@@ -883,13 +885,75 @@ def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
                 _log(f"❌ [{version}] HTTP {resp.status_code}: {err}")
                 resp.raise_for_status()
 
-            _log(f"✅ Respuesta recibida en {dt:.1f}s. Procesando JSON...")
-            return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            _log(f"✅ Respuesta recibida en {dt:.1f}s. Leyendo contenido...")
+            data = resp.json()
+            try:
+                cand = data["candidates"][0]
+            except (KeyError, IndexError):
+                # A veces no hay candidates (bloqueo de seguridad, etc.)
+                fb = data.get("promptFeedback", {})
+                _log(f"⚠️ Sin candidates. promptFeedback={json.dumps(fb)[:200]}")
+                raise ValueError(
+                    "Gemini no devolvió contenido (posible bloqueo de seguridad). "
+                    f"{json.dumps(fb)[:200]}"
+                )
+
+            # Modelos 'thinking' devuelven varias parts: omitir las marcadas
+            # como thought y concatenar el texto real de la respuesta.
+            parts = cand.get("content", {}).get("parts", [])
+            textos = [p["text"] for p in parts
+                      if isinstance(p, dict) and "text" in p and not p.get("thought")]
+            texto_final = "\n".join(textos).strip()
+
+            finish = cand.get("finishReason", "")
+            if finish and finish not in ("STOP", "MAX_TOKENS"):
+                _log(f"⚠️ finishReason={finish}")
+            if finish == "MAX_TOKENS":
+                _log("⚠️ Respuesta truncada por límite de tokens (MAX_TOKENS). "
+                     "El modelo 'pensó' demasiado. Prueba un modelo no-thinking "
+                     "(p.ej. gemini-2.5-flash-lite) o divide el contenido.")
+
+            if not texto_final:
+                _log(f"⚠️ Respuesta sin texto utilizable. finishReason={finish}. "
+                     f"Parts recibidas: {len(parts)}")
+                raise ValueError(
+                    f"Gemini respondió pero sin texto (finishReason={finish}). "
+                    "Si es un modelo 'thinking', prueba gemini-2.5-flash-lite."
+                )
+
+            return texto_final
 
     raise requests.HTTPError(
         f"404 — El modelo '{modelo}' no existe en las APIs v1 ni v1beta. "
-        "Prueba con 'gemini-2.0-flash' o 'gemini-2.5-flash-preview-05-20'."
+        "Prueba con 'gemini-2.5-flash' o 'gemini-2.5-flash-lite'."
     )
+
+
+def _extraer_json(raw: str) -> dict:
+    """
+    Extrae un objeto JSON de la respuesta de Gemini de forma robusta:
+    1. Quita fences ```json ... ```
+    2. Si aún falla, recorta desde el primer '{' hasta el último '}'.
+    """
+    txt = raw.strip()
+    # Quitar fence de código si existe
+    if "```" in txt:
+        for marker in ["```json", "```JSON", "```"]:
+            if marker in txt:
+                txt = txt.split(marker, 1)[1]
+                if "```" in txt:
+                    txt = txt.split("```")[0]
+                txt = txt.strip()
+                break
+    try:
+        return json.loads(txt)
+    except json.JSONDecodeError:
+        # Recortar al primer objeto JSON balanceado
+        inicio = txt.find("{")
+        fin = txt.rfind("}")
+        if inicio != -1 and fin != -1 and fin > inicio:
+            return json.loads(txt[inicio:fin + 1])
+        raise
 
 
 def aplicar_correccion_gemini(api_key: str, modelo: str,
@@ -898,15 +962,11 @@ def aplicar_correccion_gemini(api_key: str, modelo: str,
         json_actual=json.dumps(datos_actuales, ensure_ascii=False, indent=2),
         peticion=peticion,
     )
-    raw = _gemini_call(api_key, modelo, [prompt], log=log).strip()
-    for marker in ["```json", "```"]:
-        if marker in raw:
-            raw = raw.split(marker, 1)[1].split("```")[0].strip()
-            break
-    return json.loads(raw)
+    raw = _gemini_call(api_key, modelo, [prompt], log=log)
+    return _extraer_json(raw)
 
 
-def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
+def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.5-flash-lite",
                               texto: str = "", archivos: list | None = None,
                               log=None) -> dict:
     """
@@ -946,14 +1006,17 @@ def extraer_con_gemini_multi(api_key: str, modelo: str = "gemini-2.0-flash",
     if len(partes) == 1:
         raise ValueError("No hay contenido para procesar.")
 
-    raw = _gemini_call(api_key, modelo, partes, log=log).strip()
+    raw = _gemini_call(api_key, modelo, partes, log=log)
     _log("🔍 Parseando preguntas del JSON devuelto...")
-    for marker in ["```json", "```"]:
-        if marker in raw:
-            raw = raw.split(marker, 1)[1].split("```")[0].strip()
-            break
+    # Mostrar la respuesta cruda (recortada) para poder diagnosticar
+    vista = raw.strip().replace("\n", " ")
+    _log(f"📄 Respuesta de Gemini (primeros 500 car.): {vista[:500]}")
 
-    return json.loads(raw)
+    datos = _extraer_json(raw)
+    n = len(datos.get("preguntas", []))
+    _log(f"   → JSON parseado. Título: '{datos.get('titulo', '?')}' · "
+         f"{n} pregunta(s) encontrada(s).")
+    return datos
 
 
 def gemini_a_tests(datos: dict) -> list[dict]:
@@ -1019,7 +1082,7 @@ st.divider()
 
 for _k, _v in [("resultado", None), ("ia_estado", None),
                ("ia_datos", None), ("ia_chat", []),
-               ("ia_api_key", ""), ("ia_modelo", "gemini-2.0-flash"),
+               ("ia_api_key", ""), ("ia_modelo", "gemini-2.5-flash-lite"),
                ("ia_modelos_disponibles", None),
                ("ia_requests_sesion", 0), ("ia_diagnostico", None)]:
     if _k not in st.session_state:
