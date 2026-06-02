@@ -723,15 +723,47 @@ def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
                 break  # probar siguiente version de API
 
             if resp.status_code == 429:
+                # Extraer el mensaje y detalles reales de Google
+                msg_api = ""
+                es_diario = False
+                retry_delay = None
+                try:
+                    error_obj = resp.json().get("error", {})
+                    msg_api = error_obj.get("message", "")
+                    for detalle in error_obj.get("details", []):
+                        tipo = detalle.get("@type", "")
+                        if "QuotaFailure" in tipo:
+                            for v in detalle.get("violations", []):
+                                qid = v.get("quotaId", "") + v.get("quotaMetric", "")
+                                if "PerDay" in qid or "per_day" in qid.lower():
+                                    es_diario = True
+                        if "RetryInfo" in tipo:
+                            retry_delay = detalle.get("retryDelay", "")
+                except Exception:
+                    msg_api = resp.text[:300]
+
+                if msg_api:
+                    _log(f"📋 Google dice: {msg_api[:250]}")
+
+                # Si es límite DIARIO, reintentar no sirve de nada
+                if es_diario:
+                    _log("🚫 Límite DIARIO agotado — reintentar no ayudará hoy.")
+                    raise requests.HTTPError(
+                        "429-DIARIO — Has agotado la cuota DIARIA gratuita de este modelo. "
+                        f"{msg_api[:200]} "
+                        "Soluciones: (1) espera hasta mañana, (2) prueba otro modelo del selector, "
+                        "(3) activa facturación en tu proyecto de Google AI Studio.",
+                        response=resp,
+                    )
+
                 if intento < len(esperas) - 1:
                     espera = esperas[intento]
-                    _log(f"⏳ Rate limit (429). Esperando {espera}s antes de reintentar "
-                         f"(tier gratuito: ~15 req/min)...")
+                    _log(f"⏳ Rate limit por minuto (429). Esperando {espera}s antes de reintentar...")
                     time.sleep(espera)
                     continue
                 raise requests.HTTPError(
-                    "429 — El API de Gemini sigue al limite tras varios intentos. "
-                    "El tier gratuito tiene ~15 req/min. Espera 1-2 minutos y reintenta.",
+                    f"429 — Rate limit tras varios intentos. {msg_api[:200]} "
+                    "Espera 1-2 minutos y reintenta.",
                     response=resp,
                 )
 
@@ -1251,17 +1283,25 @@ with tab_ia:
                 except requests.HTTPError as e:
                     estado.update(label="Error de Gemini", state="error")
                     err_msg = str(e)
-                    if "429" in err_msg:
+                    if "429-DIARIO" in err_msg:
+                        st.error(
+                            "🚫 **Cuota DIARIA agotada** en este modelo del tier gratuito.\n\n"
+                            "Reintentar hoy no servirá. Opciones:\n"
+                            "1. **Cambia de modelo** en el selector (cada modelo tiene su propia cuota diaria).\n"
+                            "2. **Espera a mañana** (la cuota se reinicia cada 24h).\n"
+                            "3. **Activa facturación** en [Google AI Studio](https://aistudio.google.com) "
+                            "(pago por uso, muy barato).\n\n"
+                            f"_Mensaje de Google: {err_msg.split('429-DIARIO — ')[-1][:300]}_"
+                        )
+                    elif "429" in err_msg:
                         st.warning(
-                            "⏳ **Rate limit** — El API de Gemini está al límite (~15 req/min en tier gratuito). "
-                            "Espera 1-2 minutos y vuelve a intentarlo.\n\n**Alternativas:**\n"
-                            "- Reduce el contenido (menos imágenes, texto más corto).\n"
-                            "- Usa el modelo `gemini-2.0-flash` que es más rápido."
+                            "⏳ **Rate limit por minuto** — Espera 1-2 minutos y reintenta.\n\n"
+                            f"_Mensaje de Google: {err_msg[:300]}_"
                         )
                     elif "404" in err_msg:
                         st.error("❌ El modelo seleccionado no existe. Prueba con `gemini-2.0-flash`.")
                     else:
-                        st.error(f"Error en Gemini: {err_msg[:200]}")
+                        st.error(f"Error en Gemini: {err_msg[:400]}")
                 except Exception as e:
                     estado.update(label="Error", state="error")
                     st.error(f"Error: {str(e)[:300]}")
