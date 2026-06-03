@@ -1,6 +1,7 @@
 """Single-page Omnitest — flujo iLovePDF en Streamlit."""
 import base64
 import html as html_lib
+import time
 
 import requests
 import streamlit as st
@@ -53,6 +54,28 @@ def _render_hero() -> None:
     )
 
 
+def _fmt_eta(seconds: float) -> str:
+    s = max(0, int(seconds))
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}:{s:02d} min"
+    h, m = divmod(m, 60)
+    return f"{h}:{m:02d} h"
+
+
+def _etiqueta_progreso(msg: str, fraccion: float, inicio: float) -> str:
+    pct = int(min(max(fraccion, 0.0), 1.0) * 100)
+    partes = [msg, f"{pct}%"]
+    if fraccion >= 0.03:
+        transcurrido = time.monotonic() - inicio
+        restante = transcurrido / fraccion * (1.0 - fraccion)
+        if restante >= 2:
+            partes.append(f"~{_fmt_eta(restante)} restante")
+    return " · ".join(partes)
+
+
 def _procesar_daypo(texto: str, progress, status) -> bool:
     enlaces = extraer_enlaces_daypo(texto)
     if not enlaces:
@@ -60,18 +83,22 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
         return False
 
     n_enlaces = len(enlaces)
-    detalle = status.empty()
-    progress.progress(0.05, text="Preparando extracción…")
-    detalle.markdown(f"🔗 {n_enlaces} enlace(s) detectado(s)")
+    inicio = time.monotonic()
+    log_incidencias: list[str] = []
+
+    def _log(msg: str) -> None:
+        log_incidencias.append(msg)
+        status.write(msg)
+
+    progress.progress(0.05, text=_etiqueta_progreso("Preparando extracción…", 0.05, inicio))
+    status.caption("Registro de incidencias (solo avisos y errores).")
 
     tests: list[dict] = []
     errores: list[str] = []
 
     def _actualizar(actual: int, total: int, msg: str, indice_enlace: int) -> None:
         if n_enlaces > 1:
-            etiqueta = f"Test {indice_enlace + 1}/{n_enlaces} · {msg}"
-        else:
-            etiqueta = msg
+            msg = f"Test {indice_enlace + 1}/{n_enlaces} · {msg}"
 
         if total > 0:
             fraccion_enlace = actual / total
@@ -82,9 +109,8 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
 
         base = 0.08 + (indice_enlace / n_enlaces) * 0.82
         span = 0.82 / n_enlaces
-        pct = min(base + fraccion_enlace * span, 0.90)
-        progress.progress(pct, text=etiqueta)
-        detalle.markdown(etiqueta)
+        fraccion = min(base + fraccion_enlace * span, 0.90)
+        progress.progress(fraccion, text=_etiqueta_progreso(msg, fraccion, inicio))
 
     for i, url in enumerate(enlaces):
         corto = url.rstrip("/").split("/")[-1][:40]
@@ -92,35 +118,36 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
         def _cb(actual: int, total: int, msg: str, idx: int = i) -> None:
             _actualizar(actual, total, msg, idx)
 
-        if n_enlaces > 1:
-            detalle.markdown(f"Test {i + 1}/{n_enlaces}: {corto}…")
         test = extraer_test(url, progreso=_cb)
         if test is None:
             errores.append(url)
+            _log(f"❌ No se pudo extraer: {corto}")
         else:
             tests.append(test)
 
-    progress.progress(0.92, text="Validando estructura…")
-    detalle.markdown("Validando estructura…")
+    progress.progress(0.92, text=_etiqueta_progreso("Validando estructura…", 0.92, inicio))
 
     img_esperadas = sum(t.get("imagenes_esperadas", 0) for t in tests)
     img_ok = sum(t.get("imagenes_ok", 0) for t in tests)
     if img_esperadas and img_ok < img_esperadas:
-        detalle.markdown(f"Reintentando imágenes ({img_ok}/{img_esperadas})…")
+        _log(f"⚠️ Reintentando imágenes ({img_ok}/{img_esperadas})…")
 
         def _cb_img(actual: int, total: int, msg: str) -> None:
-            pct = 0.92 + (actual / max(total, 1)) * 0.06
-            progress.progress(min(pct, 0.98), text=msg)
-            detalle.markdown(msg)
+            fraccion = 0.92 + (actual / max(total, 1)) * 0.06
+            progress.progress(
+                min(fraccion, 0.98),
+                text=_etiqueta_progreso(msg, fraccion, inicio),
+            )
 
         img_ok, img_esperadas = completar_imagenes_tests(tests, progreso=_cb_img)
-    if img_esperadas:
-        detalle.markdown(f"Imágenes: {img_ok}/{img_esperadas} descargadas")
-        if img_ok < img_esperadas:
-            st.session_state["daypo_aviso_imagenes"] = (
-                f"Solo se pudieron descargar {img_ok} de {img_esperadas} imágenes. "
-                "El test puede usar imágenes protegidas o enlaces de otro dominio Daypo."
-            )
+    if img_esperadas and img_ok < img_esperadas:
+        _log(f"⚠️ Imágenes: {img_ok}/{img_esperadas} descargadas")
+        st.session_state["daypo_aviso_imagenes"] = (
+            f"Solo se pudieron descargar {img_ok} de {img_esperadas} imágenes. "
+            "El test puede usar imágenes protegidas o enlaces de otro dominio Daypo."
+        )
+    elif img_esperadas:
+        st.session_state.pop("daypo_aviso_imagenes", None)
     else:
         st.session_state.pop("daypo_aviso_imagenes", None)
 
@@ -132,8 +159,12 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
     st.session_state["daypo_errores"] = errores
     st.session_state["ia_procesado_con"] = ""
     total_preg = sum(len(t.get("preguntas", [])) for t in tests)
-    progress.progress(1.0, text=f"Listo — {total_preg} preguntas")
-    detalle.markdown(f"✅ {total_preg} preguntas extraídas")
+    progress.progress(
+        1.0,
+        text=_etiqueta_progreso(f"Listo — {total_preg} preguntas", 1.0, inicio),
+    )
+    if not log_incidencias:
+        status.caption("Extracción completada sin incidencias.")
     return True
 
 

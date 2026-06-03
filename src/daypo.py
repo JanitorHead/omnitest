@@ -66,10 +66,12 @@ def _numero_imagen(nodo_b: ET.Element) -> str | None:
     """Índice de imagen en el XML (<b>0</b>); ignora vídeos de YouTube."""
     if nodo_b.get("y"):
         return None
+    # Daypo marca imágenes con dimensiones (w/h); otros <b> no son fotos.
+    if not nodo_b.get("w") and not nodo_b.get("h"):
+        return None
     texto = (nodo_b.text or "").strip()
     if texto != "":
         return texto
-    # Respaldo por si Daypo deja el índice solo en atributos.
     for attr in ("i", "n"):
         valor = (nodo_b.get(attr) or "").strip()
         if valor.isdigit():
@@ -81,8 +83,6 @@ def obtener_imagen(
     id_test: str,
     num_imagen: str,
     url_origen: str,
-    *,
-    intentos: int = 3,
 ) -> bytes | None:
     headers = {
         **_HEADERS_WEB,
@@ -93,17 +93,19 @@ def obtener_imagen(
     base = f"https://www.daypo.com/testimages/{prefijo}/{id_test}_{num_imagen}"
     for ext in _EXT_IMAGEN:
         url = f"{base}.{ext}"
-        for _ in range(intentos):
-            try:
-                r = requests.get(url, headers=headers, timeout=20)
-                if r.status_code == 200 and r.content:
-                    ctype = (r.headers.get("Content-Type") or "").lower()
-                    if "image" in ctype or ext in ("jpg", "jpeg", "png", "gif", "webp"):
-                        return r.content
-                if r.status_code in (403, 404, 410):
-                    break
-            except requests.RequestException:
+        try:
+            head = requests.head(
+                url, headers=headers, timeout=10, allow_redirects=True,
+            )
+            if head.status_code != 200:
                 continue
+            r = requests.get(url, headers=headers, timeout=20)
+            if r.status_code == 200 and r.content:
+                ctype = (r.headers.get("Content-Type") or "").lower()
+                if "image" in ctype or ext in ("jpg", "jpeg", "png", "gif", "webp"):
+                    return r.content
+        except requests.RequestException:
+            continue
     return None
 
 
@@ -254,8 +256,6 @@ def extraer_test(
                 img_bytes = obtener_imagen(id_test, img_num, url)
                 if img_bytes:
                     imagenes_ok += 1
-                elif progreso:
-                    progreso(i, total, f"Pregunta {i}/{total} · imagen no disponible")
             elif progreso:
                 progreso(i, total, f"Pregunta {i}/{total}")
         elif progreso:

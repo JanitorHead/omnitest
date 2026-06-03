@@ -24,6 +24,10 @@ class TestDaypoImagenes(unittest.TestCase):
         nodo = ET.fromstring('<b y="abc123">0</b>')
         self.assertIsNone(_numero_imagen(nodo))
 
+    def test_numero_imagen_requiere_dimensiones(self):
+        nodo = ET.fromstring("<b>0</b>")
+        self.assertIsNone(_numero_imagen(nodo))
+
 
 if __name__ == "__main__":
     unittest.main()
