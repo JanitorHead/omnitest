@@ -1,5 +1,7 @@
 Omnitest es una herramienta de conversión de preguntas tipo test creada para carreras que tienen muchos exámenes tipo test: medicina, enfermería, derecho, oposiciones. Convierte preguntas desordenadas de múltiples fuentes en preguntas ordenadas en múltiples formatos como: Word, PDF, Anki, RemNote y quiz offline.
 
+Autor: JanitorHead
+
 <p align="center">
   <img src="static/logo.svg" alt="Omnitest" width="180">
 </p>
