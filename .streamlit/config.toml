@@ -2,9 +2,8 @@
 gatherUsageStats = false
 
 [server]
-# Local: abre el navegador y solo escucha en localhost (sin URL de red pública)
-headless = false
-address = "localhost"
+# Cloud y local: no fijar address=localhost (rompe Streamlit Cloud).
+headless = true
 
 [theme]
 base = "dark"
