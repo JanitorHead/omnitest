@@ -471,7 +471,9 @@ section.main,
 
 /* Selector Fuente — ver inject_button_fixes() al final del render */
 
-/* Inputs Streamlit dentro de dropzone */
+/* Inputs — textareas en toda la app (Daypo, IA, etc.) */
+.block-container [data-testid="stTextArea"] textarea,
+.block-container [data-testid="stTextArea"] div[data-baseweb="textarea"],
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextArea"] textarea,
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextArea"] div[data-baseweb="textarea"] {
     background-color: var(--input-bg) !important;
@@ -484,13 +486,15 @@ section.main,
     border-radius: var(--radius) !important;
     transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease) !important;
 }
+.block-container [data-testid="stTextArea"] textarea:focus,
+.block-container [data-testid="stTextArea"] div[data-baseweb="textarea"]:focus-within,
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextArea"] textarea:focus,
 [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextArea"] div[data-baseweb="textarea"]:focus-within {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 3px var(--accent-glow-soft) !important;
 }
 
-/* Botones primarios — Convertir, Configurar APIs (misma estética que Seleccionar archivo) */
+/* Botones primarios — Convertir, Configurar APIs */
 .block-container div.stButton > button[kind="primary"],
 .block-container div.stButton > button[data-testid="stBaseButton-primary"],
 [data-testid="stVerticalBlockBorderWrapper"] div.stButton > button[kind="primary"],
@@ -593,7 +597,81 @@ div.stDownloadButton > button:hover {
 
 .stProgress > div > div > div {
     background: var(--accent) !important;
-    height: 3px !important;
+    height: 4px !important;
+    border-radius: 999px !important;
+}
+.stProgress > div > div {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 999px !important;
+    overflow: hidden !important;
+}
+.stProgress label[data-testid="stProgressLabel"],
+.stProgress p {
+    color: var(--text) !important;
+    font-size: var(--text-sm) !important;
+}
+
+/* Status / log de incidencias */
+[data-testid="stStatusWidget"] {
+    background: var(--surface) !important;
+    border: 1px solid {{PANEL_BORDER}} !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+[data-testid="stStatusWidget"] > div {
+    background: transparent !important;
+}
+[data-testid="stStatusWidget"] label,
+[data-testid="stStatusWidget"] p,
+[data-testid="stStatusWidget"] span,
+[data-testid="stStatusWidget"] [data-testid="stMarkdownContainer"] p {
+    color: var(--text) !important;
+}
+[data-testid="stStatusWidget"] [data-testid="stCaptionContainer"] p {
+    color: var(--muted) !important;
+}
+
+.split-dl-current {
+    margin: 0.15rem 0 0.35rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.35;
+}
+.split-download-wrap [data-testid="stHorizontalBlock"] {
+    gap: 0 !important;
+    align-items: stretch !important;
+}
+.split-download-wrap [data-testid="column"]:first-child .stDownloadButton button,
+.split-download-wrap [data-testid="column"]:first-child button {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-right: none !important;
+}
+.split-download-wrap [data-testid="column"]:last-child button,
+.split-download-wrap [data-testid="column"]:last-child [data-testid="stPopover"] button {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+    padding: 0 !important;
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border-strong) !important;
+}
+.split-download-wrap [data-testid="column"]:last-child button:hover {
+    background: var(--highlight-soft) !important;
+    border-color: var(--accent) !important;
+}
+[data-testid="stPopoverBody"] {
+    background: var(--surface) !important;
+    border: 1px solid {{PANEL_BORDER}} !important;
+    border-radius: var(--radius) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+[data-testid="stPopoverBody"] p,
+[data-testid="stPopoverBody"] button {
+    color: var(--text) !important;
 }
 
 .model-badge {
@@ -1172,10 +1250,10 @@ def inject_styles() -> None:
 
 BUTTON_FIXES_CSS = """
 <style>
-/* Header — wordmark + ☀️ + ⚙️ (grid en todos los anchos; columnas auto pegadas) */
+/* Header — wordmark + toolbar (tema + APIs juntos) */
 div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto auto !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
     grid-template-rows: auto !important;
     align-items: start !important;
     column-gap: 0.35rem !important;
@@ -1203,20 +1281,26 @@ div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
     grid-row: 1 !important;
 }
 div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-    > [data-testid="column"]:nth-child(2) {
+    > [data-testid="column"]:last-child {
     grid-column: 2 !important;
     grid-row: 1 !important;
     justify-self: end !important;
     align-self: start !important;
     margin-top: 0.1rem !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-    > [data-testid="column"]:nth-child(3) {
-    grid-column: 3 !important;
-    grid-row: 1 !important;
-    justify-self: end !important;
-    align-self: start !important;
-    margin-top: 0.1rem !important;
+div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.35rem !important;
+    width: auto !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) > [data-testid="column"] {
+    width: auto !important;
+    flex: 0 0 auto !important;
+    padding: 0 !important;
+    min-width: 0 !important;
 }
 
 @media (max-width: 640px) {

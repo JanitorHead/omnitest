@@ -2,6 +2,7 @@
 import base64
 import html as html_lib
 import time
+from collections.abc import Callable
 
 import requests
 import streamlit as st
@@ -17,8 +18,9 @@ from ..api_config import proveedores_configurados
 from .api_modal import api_modal
 from .logo import wordmark_html
 from .export_grid import render_export
+from .progress_ui import etiqueta_progreso
 from .state import ir_a_editar_entrada, ir_a_entrada, ir_a_export, ir_a_revision
-from .styles import inject_button_fixes
+from .styles import inject_button_fixes, inject_styles
 from .theme_toggle import render_theme_toggle
 from .fuente_toggle import render_fuente_toggle
 from .upload_zone import or_divider_html
@@ -26,16 +28,19 @@ from .faq import render_faq
 
 
 def _render_header() -> None:
-    c_brand, c_theme, c_settings = st.columns([8, 1, 1], gap="small")
+    c_brand, c_tools = st.columns([8, 1], gap="small")
     with c_brand:
         st.markdown(wordmark_html(), unsafe_allow_html=True)
-    with c_theme:
-        render_theme_toggle()
-    with c_settings:
-        n = len(proveedores_configurados(st.session_state["api_config"]))
-        tip = f"{n} API(s) activa(s)" if n else "Configurar APIs"
-        if st.button("⚙️", key="btn_api_settings", help=tip, type="secondary"):
-            api_modal()
+    with c_tools:
+        st.markdown('<div class="omni-header-tools-marker"></div>', unsafe_allow_html=True)
+        c_theme, c_settings = st.columns(2, gap="small")
+        with c_theme:
+            render_theme_toggle()
+        with c_settings:
+            n = len(proveedores_configurados(st.session_state["api_config"]))
+            tip = f"{n} API(s) activa(s)" if n else "Configurar APIs"
+            if st.button("⚙️", key="btn_api_settings", help=tip, type="secondary"):
+                api_modal()
 
 
 def _render_hero() -> None:
@@ -54,28 +59,6 @@ def _render_hero() -> None:
     )
 
 
-def _fmt_eta(seconds: float) -> str:
-    s = max(0, int(seconds))
-    if s < 60:
-        return f"{s}s"
-    m, s = divmod(s, 60)
-    if m < 60:
-        return f"{m}:{s:02d} min"
-    h, m = divmod(m, 60)
-    return f"{h}:{m:02d} h"
-
-
-def _etiqueta_progreso(msg: str, fraccion: float, inicio: float) -> str:
-    pct = int(min(max(fraccion, 0.0), 1.0) * 100)
-    partes = [msg, f"{pct}%"]
-    if fraccion >= 0.03:
-        transcurrido = time.monotonic() - inicio
-        restante = transcurrido / fraccion * (1.0 - fraccion)
-        if restante >= 2:
-            partes.append(f"~{_fmt_eta(restante)} restante")
-    return " · ".join(partes)
-
-
 def _procesar_daypo(texto: str, progress, status) -> bool:
     enlaces = extraer_enlaces_daypo(texto)
     if not enlaces:
@@ -90,7 +73,7 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
         log_incidencias.append(msg)
         status.write(msg)
 
-    progress.progress(0.05, text=_etiqueta_progreso("Preparando extracción…", 0.05, inicio))
+    progress.progress(0.05, text=etiqueta_progreso("Preparando extracción…", 0.05, inicio))
     status.caption("Registro de incidencias (solo avisos y errores).")
 
     tests: list[dict] = []
@@ -110,7 +93,7 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
         base = 0.08 + (indice_enlace / n_enlaces) * 0.82
         span = 0.82 / n_enlaces
         fraccion = min(base + fraccion_enlace * span, 0.90)
-        progress.progress(fraccion, text=_etiqueta_progreso(msg, fraccion, inicio))
+        progress.progress(fraccion, text=etiqueta_progreso(msg, fraccion, inicio))
 
     for i, url in enumerate(enlaces):
         corto = url.rstrip("/").split("/")[-1][:40]
@@ -125,7 +108,7 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
         else:
             tests.append(test)
 
-    progress.progress(0.92, text=_etiqueta_progreso("Validando estructura…", 0.92, inicio))
+    progress.progress(0.92, text=etiqueta_progreso("Validando estructura…", 0.92, inicio))
 
     img_esperadas = sum(t.get("imagenes_esperadas", 0) for t in tests)
     img_ok = sum(t.get("imagenes_ok", 0) for t in tests)
@@ -136,7 +119,7 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
             fraccion = 0.92 + (actual / max(total, 1)) * 0.06
             progress.progress(
                 min(fraccion, 0.98),
-                text=_etiqueta_progreso(msg, fraccion, inicio),
+                text=etiqueta_progreso(msg, fraccion, inicio),
             )
 
         img_ok, img_esperadas = completar_imagenes_tests(tests, progreso=_cb_img)
@@ -161,7 +144,7 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
     total_preg = sum(len(t.get("preguntas", [])) for t in tests)
     progress.progress(
         1.0,
-        text=_etiqueta_progreso(f"Listo — {total_preg} preguntas", 1.0, inicio),
+        text=etiqueta_progreso(f"Listo — {total_preg} preguntas", 1.0, inicio),
     )
     if not log_incidencias:
         status.caption("Extracción completada sin incidencias.")
@@ -362,10 +345,16 @@ def _preguntas_preview_ia() -> list[dict]:
     return st.session_state["ia_datos"].get("preguntas", [])
 
 
-def _preguntas_preview_daypo() -> list[dict]:
+def _preguntas_preview_daypo(
+    on_progress: Callable[[int, int], None] | None = None,
+) -> list[dict]:
     out = []
-    for test in st.session_state.get("daypo_tests") or []:
+    tests = st.session_state.get("daypo_tests") or []
+    total = sum(len(t.get("preguntas", [])) for t in tests)
+    n = 0
+    for test in tests:
         for p in test.get("preguntas", []):
+            n += 1
             correcta = next((o[0] for o in p["opciones"] if o[1]), "")
             incorrectas = [o[0] for o in p["opciones"] if not o[1]]
             item = {
@@ -376,33 +365,20 @@ def _preguntas_preview_daypo() -> list[dict]:
             if p.get("img_bytes"):
                 item["img_b64"] = base64.b64encode(p["img_bytes"]).decode("ascii")
             out.append(item)
+            if on_progress and (n == total or n % 8 == 0):
+                on_progress(n, total)
     return out
 
 
-def _render_revision() -> None:
-    fuente = st.session_state["fuente"]
-
-    if fuente == "ia":
-        preguntas = _preguntas_preview_ia()
-        titulo = st.session_state["ia_datos"].get("titulo", "Test")
-    else:
-        preguntas = _preguntas_preview_daypo()
-        tests = st.session_state.get("daypo_tests") or []
-        titulo = tests[0]["titulo"] if len(tests) == 1 else f"{len(tests)} tests Daypo"
-
-    n = len(preguntas)
-    st.markdown(f'<p class="review-summary">{n} preguntas listas</p>', unsafe_allow_html=True)
-    st.caption(titulo)
-    if fuente == "daypo" and st.session_state.get("daypo_aviso_imagenes"):
-        st.warning(st.session_state["daypo_aviso_imagenes"])
-    if st.session_state.get("ia_procesado_con"):
-        st.markdown(
-            f'<span class="model-badge">Procesado con {html_lib.escape(st.session_state["ia_procesado_con"])}</span>',
-            unsafe_allow_html=True,
-        )
-
+def _build_preview_html(
+    preguntas: list[dict],
+    on_chunk: Callable[[int, int], None] | None = None,
+) -> str:
     html_parts = ['<div class="preview-scroll">']
+    total = len(preguntas)
     for i, p in enumerate(preguntas, 1):
+        if on_chunk:
+            on_chunk(i, total)
         enc = html_lib.escape(p["enunciado"])
         html_parts.append(f'<div class="preview-q"><strong>{i}. {enc}</strong>')
         if p.get("img_b64"):
@@ -421,7 +397,70 @@ def _render_revision() -> None:
             )
         html_parts.append("</div>")
     html_parts.append("</div>")
-    st.markdown("".join(html_parts), unsafe_allow_html=True)
+    return "".join(html_parts)
+
+
+def _render_revision() -> None:
+    fuente = st.session_state["fuente"]
+    prep_bar = None
+    total_prev = 0
+
+    if fuente == "ia":
+        preguntas = _preguntas_preview_ia()
+        titulo = st.session_state["ia_datos"].get("titulo", "Test")
+        total_prev = len(preguntas)
+    else:
+        tests = st.session_state.get("daypo_tests") or []
+        titulo = tests[0]["titulo"] if len(tests) == 1 else f"{len(tests)} tests Daypo"
+        total_prev = sum(len(t.get("preguntas", [])) for t in tests)
+        if total_prev > 40:
+            prep_bar = st.progress(0, text="Preparando preview…")
+            inicio_prep = time.monotonic()
+
+            def _prep_chunk(actual: int, total: int) -> None:
+                fr = actual / total
+                prep_bar.progress(
+                    fr * 0.45,
+                    text=etiqueta_progreso(
+                        f"Preparando {actual}/{total}", fr * 0.45, inicio_prep,
+                    ),
+                )
+
+            preguntas = _preguntas_preview_daypo(on_progress=_prep_chunk)
+        else:
+            preguntas = _preguntas_preview_daypo()
+
+    n = len(preguntas)
+    st.markdown(f'<p class="review-summary">{n} preguntas listas</p>', unsafe_allow_html=True)
+    st.caption(titulo)
+    if fuente == "daypo" and st.session_state.get("daypo_aviso_imagenes"):
+        st.warning(st.session_state["daypo_aviso_imagenes"])
+    if st.session_state.get("ia_procesado_con"):
+        st.markdown(
+            f'<span class="model-badge">Procesado con {html_lib.escape(st.session_state["ia_procesado_con"])}</span>',
+            unsafe_allow_html=True,
+        )
+
+    if n > 40:
+        base_fr = 0.45 if prep_bar is not None else 0.0
+        preview_bar = st.progress(base_fr, text="Montando preview…")
+        inicio_preview = time.monotonic()
+
+        def _preview_chunk(actual: int, total: int) -> None:
+            fr = base_fr + (actual / total) * (1.0 - base_fr)
+            preview_bar.progress(
+                fr,
+                text=etiqueta_progreso(f"Pregunta {actual}/{total}", fr, inicio_preview),
+            )
+
+        preview_html = _build_preview_html(preguntas, on_chunk=_preview_chunk)
+        preview_bar.empty()
+        if prep_bar is not None:
+            prep_bar.empty()
+    else:
+        preview_html = _build_preview_html(preguntas)
+
+    st.markdown(preview_html, unsafe_allow_html=True)
 
     if fuente == "ia":
         with st.expander("Ajustar con IA (opcional)", expanded=False):
@@ -460,14 +499,29 @@ def _render_revision() -> None:
     c1, c2 = st.columns([2, 1])
     with c1:
         if st.button("Exportar →", type="primary", use_container_width=True):
+            inicio_export = time.monotonic()
+            export_bar = st.progress(0, text="Generando exportables…")
+
+            def _export_progress(actual: int, total: int, msg: str) -> None:
+                fr = actual / max(total, 1)
+                export_bar.progress(
+                    fr,
+                    text=etiqueta_progreso(msg, fr, inicio_export),
+                )
+
             if fuente == "ia":
                 tests = ia_a_tests(st.session_state["ia_datos"])
-                st.session_state["resultado"] = construir_resultado(tests)
+                st.session_state["resultado"] = construir_resultado(
+                    tests,
+                    progreso=_export_progress,
+                )
             else:
                 st.session_state["resultado"] = construir_resultado(
                     st.session_state["daypo_tests"],
                     errores=st.session_state.get("daypo_errores") or [],
+                    progreso=_export_progress,
                 )
+            export_bar.progress(1.0, text="Listo · 100%")
             ir_a_export()
             st.rerun()
     with c2:
@@ -477,6 +531,8 @@ def _render_revision() -> None:
 
 
 def render_app() -> None:
+    inject_styles()
+    inject_button_fixes()
     _render_header()
     if st.session_state.pop("api_modal_reopen", False):
         api_modal()
@@ -491,5 +547,3 @@ def render_app() -> None:
         _render_revision()
     elif flujo == "export":
         render_export()
-
-    inject_button_fixes()

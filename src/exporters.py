@@ -4,9 +4,12 @@ más construir_resultado() que orquesta todos los formatos.
 import os
 import tempfile
 import zipfile
+from collections.abc import Callable
 from io import BytesIO
 
 from .daypo import completar_imagenes_tests
+
+ProgresoFn = Callable[[int, int, str], None]
 
 import genanki
 from docx import Document
@@ -321,25 +324,59 @@ def generar_apkg_anki(tests: list[dict]) -> bytes:
 # Orquestación
 # ---------------------------------------------------------------------------
 
-def construir_resultado(tests: list[dict], errores: list[str] | None = None) -> dict:
+def construir_resultado(
+    tests: list[dict],
+    errores: list[str] | None = None,
+    progreso: ProgresoFn | None = None,
+) -> dict:
     """Genera todos los exportables y los empaqueta para session_state."""
-    if any(t.get("id_test") for t in tests):
-        completar_imagenes_tests(tests)
     nb = generar_nombre_base(tests)
     es_multi = len(tests) > 1
+
+    pasos: list[tuple[str, str, Callable[[], bytes]]] = []
+    if any(t.get("id_test") for t in tests):
+        pasos.append(("__imagenes__", "Completando imágenes…", lambda: b""))
+    pasos.extend([
+        ("word_combinado_con", "Generando Word (con respuestas)…", lambda: generar_word_combinado(tests, True)),
+        ("word_combinado_sin", "Generando Word (sin respuestas)…", lambda: generar_word_combinado(tests, False)),
+        ("pdf_combinado_con", "Generando PDF (con respuestas)…", lambda: generar_pdf(tests, True)),
+        ("pdf_combinado_sin", "Generando PDF (sin respuestas)…", lambda: generar_pdf(tests, False)),
+    ])
+    if es_multi:
+        pasos.extend([
+            ("zip_word_individuales", "Generando Word por test…", lambda: generar_zip_word_individuales(tests)),
+            ("zip_pdf_individuales", "Generando PDF por test…", lambda: generar_zip_pdf_individuales(tests)),
+        ])
+    pasos.extend([
+        ("zip_imagenes", "Empaquetando imágenes…", lambda: generar_zip_imagenes(tests)),
+        ("zip_remnote", "Generando RemNote…", lambda: generar_zip_remnote(tests)),
+        ("apkg_anki", "Generando Anki…", lambda: generar_apkg_anki(tests)),
+        ("html_quiz", "Generando quiz HTML…", lambda: generar_html_quiz(tests, nb)),
+    ])
+
+    total = len(pasos)
+    datos: dict[str, bytes] = {}
+    for i, (clave, etiqueta, fn) in enumerate(pasos, start=1):
+        if progreso:
+            progreso(i, total, etiqueta)
+        if clave == "__imagenes__":
+            completar_imagenes_tests(tests)
+            continue
+        datos[clave] = fn()
+
     return {
         "nombre_base": nb,
         "es_multi": es_multi,
-        "word_combinado_con": generar_word_combinado(tests, con_respuesta=True),
-        "word_combinado_sin": generar_word_combinado(tests, con_respuesta=False),
-        "zip_word_individuales": generar_zip_word_individuales(tests) if es_multi else b"",
-        "pdf_combinado_con": generar_pdf(tests, con_respuesta=True),
-        "pdf_combinado_sin": generar_pdf(tests, con_respuesta=False),
-        "zip_pdf_individuales": generar_zip_pdf_individuales(tests) if es_multi else b"",
-        "zip_imagenes": generar_zip_imagenes(tests),
-        "zip_remnote": generar_zip_remnote(tests),
-        "apkg_anki": generar_apkg_anki(tests),
-        "html_quiz": generar_html_quiz(tests, nb),
+        "word_combinado_con": datos["word_combinado_con"],
+        "word_combinado_sin": datos["word_combinado_sin"],
+        "zip_word_individuales": datos.get("zip_word_individuales", b""),
+        "pdf_combinado_con": datos["pdf_combinado_con"],
+        "pdf_combinado_sin": datos["pdf_combinado_sin"],
+        "zip_pdf_individuales": datos.get("zip_pdf_individuales", b""),
+        "zip_imagenes": datos["zip_imagenes"],
+        "zip_remnote": datos["zip_remnote"],
+        "apkg_anki": datos["apkg_anki"],
+        "html_quiz": datos["html_quiz"],
         "tests_ok": len(tests),
         "errores": errores or [],
     }
