@@ -195,7 +195,7 @@ def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
          f"{n_pdf} PDF(s) · {tam_kb} KB en base64")
 
     body = {"contents": [{"parts": parts_json}]}
-    esperas = [5, 10, 20, 40, 60]  # backoff entre reintentos por 429
+    esperas = [3, 8]  # pocos reintentos — el fallback prueba otro proveedor
 
     for version in ("v1", "v1beta"):
         url = (
@@ -231,8 +231,14 @@ def _gemini_call(api_key: str, modelo: str, partes: list, log=None) -> str:
                             for v in detalle.get("violations", []):
                                 quota_id = v.get("quotaId", "") or quota_id
                                 quota_value = v.get("quotaValue", quota_value)
-                                qid = quota_id + v.get("quotaMetric", "")
-                                if "PerDay" in qid or "per_day" in qid.lower():
+                                qmetric = (v.get("quotaMetric", "") or "")
+                                qid = quota_id + qmetric
+                                qid_lower = qid.lower()
+                                if (
+                                    "PerDay" in qid
+                                    or "per_day" in qid_lower
+                                    or "requestsperday" in qid_lower
+                                ):
                                     es_diario = True
                 except Exception:  # noqa: BLE001
                     msg_api = resp.text[:300]
@@ -367,6 +373,8 @@ def extraer_con_gemini_multi(api_key: str, modelo: str = MODELO_POR_DEFECTO,
 
     for archivo in (archivos or []):
         datos = archivo.read()
+        if not isinstance(datos, (bytes, bytearray)):
+            datos = b""
         ext = archivo.name.rsplit(".", 1)[-1].lower()
         if ext in ("docx", "doc"):
             _log(f"📄 Extrayendo texto de {archivo.name}...")

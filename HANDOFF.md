@@ -1,5 +1,7 @@
 # Omnitest — Documento de traspaso (contexto para continuar el proyecto)
 
+> **Versión actual: 1.0.0** — ver [CHANGELOG.md](CHANGELOG.md) para el detalle de cambios.
+>
 > Este documento pone en contexto a cualquier IA o desarrollador que continúe el
 > proyecto. Resume la visión, el estado actual, las decisiones tomadas y los
 > aprendizajes (sobre todo los dolorosos) para no repetir errores.
@@ -37,10 +39,12 @@ Omnitest refleja ese salto: ya no es sobre Daypo, es sobre *cualquier* fuente.
 1. **🔗 Daypo:** pegas enlaces (o texto que los contenga). Detecta los enlaces
    con regex, descarga el test vía el endpoint interno `/asps/load.php`,
    descifra la respuesta correcta (máscara numérica del XML) y baja las imágenes.
-2. **🤖 IA (Gemini):** pegas texto desordenado **y/o** subes **fotos + PDFs +
-   Word a la vez** (multi-fuente en una sola llamada). La IA hace OCR, limpia
-   artefactos y unifica todo. **Si la correcta no viene marcada, la deduce** con
-   su conocimiento. Hay un **chat de correcciones** para afinar antes de exportar.
+2. **🤖 IA (multi-API):** pegas texto desordenado **y/o** subes **fotos + PDFs +
+   Word a la vez** (multi-fuente en una sola llamada). Proveedores: **Gemini**
+   (multimodal), **Groq**, **Cerebras**, **Mistral**. Router automático + fallback
+   si hay 429. La IA hace OCR, limpia artefactos y unifica todo. **Si la correcta
+   no viene marcada, la deduce** con su conocimiento. Hay un **chat de correcciones**
+   con fallback entre proveedores. Configuración en modal **⚙** con import/export JSON.
 
 ### Seis SALIDAS (todas desde un formato de datos común)
 1. **📄 Word** (.docx) — con/sin respuestas, imágenes embebidas.
@@ -64,20 +68,22 @@ subcarpetas `Con_Respuesta/` y `Sin_Respuesta/`.
 Reestructurado de un único archivo de ~1600 líneas a un **paquete modular**:
 
 ```
-app.py                 Punto de entrada Streamlit (set_page_config, título, tabs)
+app.py                 Punto de entrada Streamlit (single-page)
+static/logo.svg        Logo
 src/
-  __init__.py          Metadatos (APP_NOMBRE="Omnitest", APP_ICONO="🎯", tagline)
+  __init__.py          Metadatos (APP_NOMBRE, APP_VERSION, tagline)
   utils.py             nombre_archivo, generar_nombre_base, separar_opciones
   daypo.py             extraer_enlaces_daypo, obtener_imagen, extraer_test
-  ai_import.py         Gemini REST: listar_modelos, diagnosticar_modelo,
-                       _gemini_call, extraer_con_gemini_multi,
-                       aplicar_correccion_gemini, gemini_a_tests
+  ai_import.py         Gemini REST: listar_modelos, _gemini_call, prompts
+  ai_providers.py      Capa unificada Groq/Cerebras/Mistral/Gemini + fallback
+  api_config.py        Config proveedores, import/export omnitest-config.json
+  model_router.py      Router automático + plan de fallback
   exporters.py         Word/PDF/RemNote/Anki/imágenes + construir_resultado()
   quiz.py              generar_html_quiz (CSS+JS embebidos)
-  ui.py                render_resultados, render_tab_daypo, render_tab_ia, init_estado
+  ui/                  single_page, api_modal, styles, themes, faq, export_grid…
 requirements.txt       streamlit, requests, python-docx, genanki, fpdf2
-install.ps1 / .sh      Instaladores de un comando (descargan el repo zip/tarball)
-*_launcher.*           Lanzadores locales (Windows .bat / macOS .command / Linux .sh)
+install.ps1 / .sh      Instaladores de un comando
+CHANGELOG.md           Historial de versiones
 README.md
 HANDOFF.md             (este archivo)
 ```
@@ -106,10 +112,9 @@ los formatos de golpe, devolviendo un dict que se guarda en
 `st.session_state["resultado"]` y alimenta la pantalla de descargas.
 
 ### Flujo de la UI
-- `app.py`: si hay `resultado` en sesión → `render_resultados()` (pantalla de
-  descargas) y `st.stop()`. Si no → dos pestañas (Daypo / IA).
-- La pestaña IA tiene dos estados: formulario de entrada → vista "preview"
-  (lista de preguntas + chat de correcciones + botón "Generar archivos").
+- **Single-page** (`src/ui/single_page.py`): flujo `entrada → revision → export`.
+- Modal **⚙** para APIs; FAQ al pie de entrada; tema claro/oscuro.
+- `construir_resultado()` al pulsar Exportar; pantalla de descargas con grid de formatos.
 
 ---
 
