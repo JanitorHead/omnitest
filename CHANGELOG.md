@@ -21,6 +21,10 @@ Mejoras de interfaz móvil y desktop tras el lanzamiento inicial.
 - **Scroll horizontal fantasma** en smartphone (overflow de márgenes negativos de Streamlit).
 - Toolbar alineada **dentro del margen del contenido**, no pegada al borde de la pantalla.
 
+### Notas
+
+- Si **omnitest.streamlit.app** sigue mostrando la UI antigua, Streamlit Cloud puede tardar unos minutos en redeployar tras el push; prueba recarga forzada (Ctrl+Shift+R).
+
 ---
 
 ## [1.0.0] — 2026-06-02
