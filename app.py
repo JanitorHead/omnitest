@@ -7,7 +7,7 @@ from src.ui.styles import inject_styles
 
 st.set_page_config(
     page_title=APP_NOMBRE,
-    page_icon="static/icon.png",
+    page_icon="static/logo.svg",
     layout="centered",
     initial_sidebar_state="collapsed",
 )

@@ -1,25 +1,18 @@
-"""Logo Omnitest — marca visual desde static/logo-mark.png."""
-import base64
-from functools import lru_cache
+"""Logo Omnitest — SVG inline (fondo transparente) desde static/logo.svg."""
 from pathlib import Path
 
-_LOGO_PATH = Path(__file__).resolve().parents[2] / "static" / "logo-mark.png"
+_LOGO_PATH = Path(__file__).resolve().parents[2] / "static" / "logo.svg"
 
 
-@lru_cache(maxsize=1)
-def _logo_b64() -> str:
-    return base64.b64encode(_LOGO_PATH.read_bytes()).decode("ascii")
-
-
-def _logo_img() -> str:
-    return (
-        f'<img class="omni-logo" src="data:image/png;base64,{_logo_b64()}" '
-        'alt="" aria-hidden="true" decoding="async">'
-    )
+def _logo_svg() -> str:
+    raw = _LOGO_PATH.read_text(encoding="utf-8").strip()
+    if 'class="omni-logo"' in raw:
+        return raw
+    return raw.replace("<svg", '<svg class="omni-logo" aria-hidden="true"', 1)
 
 
 def wordmark_html() -> str:
     return (
-        f'<div class="omni-wordmark">{_logo_img()}'
+        f'<div class="omni-wordmark">{_logo_svg()}'
         '<span class="omni-wordmark-text">Omnitest</span></div>'
     )
