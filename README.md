@@ -165,12 +165,17 @@ Imagen social (Open Graph / Twitter, 1200×630):
 Tags de referencia (Streamlit Cloud genera parte del `<head>` desde el README; imagen y autor pueden requerir ajuste en [share.streamlit.io](https://share.streamlit.io) → tu app → Settings):
 
 ```html
+<meta name="description" content="Omnitest es una herramienta de conversión de preguntas tipo test creada para carreras que tienen muchos exámenes tipo test: medicina, enfermería, derecho, oposiciones. Convierte preguntas desordenadas de múltiples fuentes en preguntas ordenadas en múltiples formatos como: Word, PDF, Anki, RemNote y quiz offline.">
+<meta name="author" content="JanitorHead">
 <meta property="og:title" content="Omnitest">
 <meta property="og:description" content="Omnitest es una herramienta de conversión de preguntas tipo test creada para carreras que tienen muchos exámenes tipo test: medicina, enfermería, derecho, oposiciones. Convierte preguntas desordenadas de múltiples fuentes en preguntas ordenadas en múltiples formatos como: Word, PDF, Anki, RemNote y quiz offline.">
 <meta property="og:image" content="https://raw.githubusercontent.com/JanitorHead/omnitest/main/static/og-image.png">
 <meta property="og:url" content="https://omnitest.streamlit.app/">
 <meta property="og:locale" content="es_ES">
+<meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Omnitest">
+<meta name="twitter:description" content="Omnitest es una herramienta de conversión de preguntas tipo test creada para carreras que tienen muchos exámenes tipo test: medicina, enfermería, derecho, oposiciones. Convierte preguntas desordenadas de múltiples fuentes en preguntas ordenadas en múltiples formatos como: Word, PDF, Anki, RemNote y quiz offline.">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/JanitorHead/omnitest/main/static/og-image.png">
 ```
 

@@ -14,3 +14,5 @@ APP_OG_IMAGE_URL = (
     "https://raw.githubusercontent.com/JanitorHead/omnitest/main/static/og-image.png"
 )
 APP_AUTHOR = "JanitorHead"
+APP_LOCALE = "es_ES"
+APP_URL = "https://omnitest.streamlit.app/"
