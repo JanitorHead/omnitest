@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://omnitest.streamlit.app"><img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Abrir en Streamlit"></a>
   &nbsp;
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-1.0.0-7C69EF?style=flat-square" alt="Changelog 1.0.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-1.0.1-7C69EF?style=flat-square" alt="Changelog 1.0.1"></a>
 </p>
 
 <p align="center">
@@ -158,7 +158,7 @@ CHANGELOG.md                  Historial de versiones
 
 Consulta **[CHANGELOG.md](CHANGELOG.md)** para el detalle de cada versión.
 
-**Última versión: 1.0.0** — flujo single-page, multi-API, router con fallback, tema claro/oscuro y exportación completa.
+**Última versión: 1.0.1** — header responsive, emojis unificados en toolbar y sin scroll horizontal en móvil.
 
 ---
 

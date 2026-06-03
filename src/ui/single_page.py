@@ -24,19 +24,16 @@ from .faq import render_faq
 
 
 def _render_header() -> None:
-    h1, h2 = st.columns([6, 1])
-    with h1:
+    c_brand, c_theme, c_settings = st.columns([8, 1, 1], gap="small")
+    with c_brand:
         st.markdown(wordmark_html(), unsafe_allow_html=True)
-    with h2:
-        st.markdown('<div class="omni-toolbar-anchor"></div>', unsafe_allow_html=True)
-        col_theme, col_settings = st.columns(2, gap="small")
-        with col_theme:
-            render_theme_toggle()
-        with col_settings:
-            n = len(proveedores_configurados(st.session_state["api_config"]))
-            tip = f"{n} API(s) activa(s)" if n else "Configurar APIs"
-            if st.button("⚙", key="btn_api_settings", help=tip, type="secondary"):
-                api_modal()
+    with c_theme:
+        render_theme_toggle()
+    with c_settings:
+        n = len(proveedores_configurados(st.session_state["api_config"]))
+        tip = f"{n} API(s) activa(s)" if n else "Configurar APIs"
+        if st.button("⚙️", key="btn_api_settings", help=tip, type="secondary"):
+            api_modal()
 
 
 def _render_hero() -> None:

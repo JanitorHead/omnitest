@@ -73,7 +73,42 @@ section[data-testid="stSidebar"] { display: none; }
 .block-container {
     padding-top: 2rem !important;
     padding-bottom: 3rem !important;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
     max-width: 880px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+/* Sin scroll horizontal fantasma (móvil / Streamlit gutters) */
+html, body {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+section.main,
+.main {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+.block-container [data-testid="stHorizontalBlock"],
+.block-container [data-testid="stVerticalBlock"],
+.block-container [data-testid="stVerticalBlockBorderWrapper"],
+.block-container [data-testid="stFileUploader"] {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+.block-container [data-testid="stHorizontalBlock"] {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+.block-container [data-testid="stElementContainer"] {
+    max-width: 100% !important;
+    min-width: 0 !important;
 }
 
 /* Wordmark + logo — icono ancho encima del texto */
@@ -1131,49 +1166,51 @@ def inject_styles() -> None:
 
 BUTTON_FIXES_CSS = """
 <style>
-.omni-toolbar-anchor {
-    display: none !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* Toolbar — fila ☀ + ⚙ (ancla en columna derecha del header) */
+/* Header — wordmark + ☀️ + ⚙️ (grid en todos los anchos; columnas auto pegadas) */
 div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) {
-    align-items: flex-start !important;
-    justify-content: space-between !important;
-    flex-wrap: nowrap !important;
-}
-div[data-testid="stElementContainer"]:has(.omni-toolbar-anchor)
-    + div[data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] {
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    gap: 0.35rem !important;
-    width: auto !important;
-    max-width: none !important;
-    margin-top: 0 !important;
-    margin-left: auto !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto auto !important;
+    grid-template-rows: auto !important;
+    align-items: start !important;
+    column-gap: 0.35rem !important;
+    row-gap: 0 !important;
+    margin-left: 0 !important;
     margin-right: 0 !important;
-    justify-content: flex-end !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
-div[data-testid="stElementContainer"]:has(.omni-toolbar-anchor)
-    + div[data-testid="stElementContainer"] [data-testid="column"] {
-    flex: 0 0 auto !important;
-    width: auto !important;
+div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) > [data-testid="column"] {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     min-width: 0 !important;
-    max-width: none !important;
-    padding: 0 2px !important;
-}
-/* Columna del header que contiene la toolbar */
-div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-    > [data-testid="column"]:last-child {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-end !important;
-    justify-content: center !important;
-    flex: 0 0 auto !important;
+    margin: 0 !important;
     width: auto !important;
-    padding-top: 0 !important;
+    max-width: none !important;
+    flex: unset !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
+    > [data-testid="column"]:first-child {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
+    > [data-testid="column"]:nth-child(2) {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: start !important;
+    margin-top: 0.1rem !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
+    > [data-testid="column"]:nth-child(3) {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: start !important;
+    margin-top: 0.1rem !important;
 }
 
 @media (max-width: 640px) {
@@ -1181,47 +1218,15 @@ div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
         padding-left: max(1.15rem, env(safe-area-inset-left, 0px)) !important;
         padding-right: max(1.15rem, env(safe-area-inset-right, 0px)) !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) {
-        flex-direction: row !important;
-        align-items: flex-start !important;
-        gap: 0.5rem !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-        > [data-testid="column"]:first-child {
-        flex: 1 1 auto !important;
-        width: auto !important;
-        min-width: 0 !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-        > [data-testid="column"]:last-child {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        align-self: flex-start !important;
-        margin-top: 0.1rem !important;
-        padding-right: 0.15rem !important;
-    }
-    div[data-testid="stElementContainer"]:has(.omni-toolbar-anchor)
-        + div[data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] {
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 0.45rem !important;
-        margin-right: 0 !important;
-    }
-    div[data-testid="stElementContainer"]:has(.omni-toolbar-anchor)
-        + div[data-testid="stElementContainer"] [data-testid="column"] {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        padding: 0 !important;
-    }
     .omni-wordmark {
-        gap: 0.35rem !important;
+        gap: 0.4rem !important;
     }
     .omni-wordmark-text {
-        font-size: 1.5rem !important;
+        font-size: 2.125rem !important;
         margin-left: 0 !important;
     }
     .omni-logo {
-        width: 6.25rem !important;
+        width: 8.75rem !important;
         height: auto !important;
     }
     .omni-hero-gap {
@@ -1235,7 +1240,7 @@ div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
         min-width: 44px !important;
         max-width: 44px !important;
         min-height: 44px !important;
-        font-size: 1.1rem !important;
+        font-size: 1.25rem !important;
     }
 }
 .st-key-btn_theme_toggle,
@@ -1263,12 +1268,18 @@ div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    font-size: 1.15rem !important;
+    font-size: 1.2rem !important;
     line-height: 1 !important;
 }
+/* Toolbar header — emojis ☀️ / ⚙️ a color (mismo estilo móvil y desktop) */
+.st-key-btn_theme_toggle button,
+.st-key-btn_api_settings button,
 .st-key-btn_theme_toggle button *,
 .st-key-btn_api_settings button * {
-    color: {{BTN_TEXT}} !important;
+    color: unset !important;
+    -webkit-text-fill-color: unset !important;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+        "Twemoji Mozilla", sans-serif !important;
 }
 .st-key-btn_theme_toggle button:hover,
 .st-key-btn_api_settings button:hover {
@@ -1425,6 +1436,11 @@ button[data-testid="stBaseButton-primary"] span {
     padding: 0.25rem !important;
     gap: 0.25rem !important;
     margin-bottom: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 .block-container:has(.fuente-picker-marker)
     [data-testid="stHorizontalBlock"]:has(.st-key-fuente_daypo):has(.st-key-fuente_ia) .stButton {

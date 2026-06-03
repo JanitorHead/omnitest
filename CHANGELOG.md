@@ -5,6 +5,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.0.1] — 2026-06-02
+
+Mejoras de interfaz móvil y desktop tras el lanzamiento inicial.
+
+### Cambiado
+
+- Header con **3 columnas planas** (wordmark · tema · APIs) y grid `1fr auto auto` en **todos los anchos** — los botones ☀️ y ⚙️ quedan juntos también en desktop.
+- **Emojis unificados** en la toolbar: ☀️ / 🌙 (tema) y ⚙️ (APIs), mismo estilo en móvil y desktop.
+- Logo y título **más grandes en móvil** (8.75rem / 2.125rem).
+
+### Corregido
+
+- Botones de tema y configuración **apilados o separados** en pantallas estrechas o anchas.
+- **Scroll horizontal fantasma** en smartphone (overflow de márgenes negativos de Streamlit).
+- Toolbar alineada **dentro del margen del contenido**, no pegada al borde de la pantalla.
+
+---
+
 ## [1.0.0] — 2026-06-02
 
 Primera versión pública con flujo single-page, multi-API y exportación completa.
@@ -73,6 +91,7 @@ Primera versión pública con flujo single-page, multi-API y exportación comple
 
 ---
 
+[1.0.1]: https://github.com/JanitorHead/omnitest/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JanitorHead/omnitest/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/JanitorHead/omnitest/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JanitorHead/omnitest/releases/tag/v0.1.0
