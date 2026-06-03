@@ -1,4 +1,4 @@
-Omnitest es la navaja suiza de estudio para carreras con mucho examen tipo test: Medicina y el MIR, oposiciones, enfermería, derecho. De cualquier fuente a tests para practicar.
+Omnitest es una herramienta de conversión de preguntas tipo test creada para carreras que tienen muchos exámenes tipo test: medicina, enfermería, derecho, oposiciones. Convierte preguntas desordenadas de múltiples fuentes en preguntas ordenadas en múltiples formatos como: Word, PDF, Anki, RemNote y quiz offline.
 
 <p align="center">
   <img src="static/logo.svg" alt="Omnitest" width="180">
@@ -27,7 +27,7 @@ Omnitest es la navaja suiza de estudio para carreras con mucho examen tipo test:
 
 ## ¿Para qué sirve?
 
-Omnitest es la navaja suiza de estudio para carreras con mucho examen tipo test: Medicina y el MIR, oposiciones, enfermería, derecho…
+Omnitest es una herramienta de conversión de preguntas tipo test creada para carreras que tienen muchos exámenes tipo test: medicina, enfermería, derecho, oposiciones. Convierte preguntas desordenadas de múltiples fuentes en material listo para estudiar en Word, PDF, Anki, RemNote y quiz offline.
 
 Tomas preguntas **como estén** y las devuelves limpias en **Word, PDF, Anki, RemNote, un quiz HTML offline** o un ZIP de imágenes — con o sin respuestas marcadas.
 
