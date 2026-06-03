@@ -128,12 +128,12 @@ section.main,
     margin-left: 0;
 }
 .omni-logo {
-    width: 7.75rem;
+    width: 10.5rem;
     height: auto;
     max-width: 100%;
     flex-shrink: 0;
     display: block;
-    border-radius: 14px;
+    border-radius: 0;
 }
 
 /* Panel omnitest — misma estética que el dropzone de archivos */
@@ -1227,7 +1227,7 @@ div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
         margin-left: 0 !important;
     }
     .omni-logo {
-        width: 8.75rem !important;
+        width: 10rem !important;
         height: auto !important;
     }
     .omni-hero-gap {
