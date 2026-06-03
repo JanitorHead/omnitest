@@ -10,3 +10,7 @@ APP_DESCRIPTION = (
     "ordenadas en múltiples formatos como: Word, PDF, Anki, RemNote y quiz offline."
 )
 APP_ICONO = "📄"
+APP_OG_IMAGE_URL = (
+    "https://raw.githubusercontent.com/JanitorHead/omnitest/main/static/og-image.png"
+)
+APP_AUTHOR = "JanitorHead"
