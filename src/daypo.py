@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from urllib.parse import urlparse
 
 import requests
+
+ProgresoFn = Callable[[int, int, str], None]
 
 _HEADERS_WEB = {
     "User-Agent": (
@@ -168,33 +171,41 @@ def _parsear_test(url: str) -> tuple[str, str, list] | None:
     return id_test, titulo, preguntas
 
 
-def completar_imagenes_test(test: dict) -> int:
+def completar_imagenes_test(
+    test: dict,
+    progreso: ProgresoFn | None = None,
+) -> int:
     """Reintenta descargas fallidas. Devuelve cuántas imágenes quedaron listas."""
     id_test = test.get("id_test")
     url = test.get("url_origen")
     if not id_test or not url:
         return sum(1 for p in test.get("preguntas", []) if p.get("img_bytes"))
 
-    listas = 0
-    for pregunta in test.get("preguntas", []):
+    pendientes = [
+        p
+        for p in test.get("preguntas", [])
+        if (p.get("img_num") or p.get("num_imagen")) and not p.get("img_bytes")
+    ]
+    total = len(pendientes)
+    listas = sum(
+        1 for p in test.get("preguntas", []) if p.get("img_bytes")
+    )
+    for i, pregunta in enumerate(pendientes, start=1):
+        if progreso:
+            progreso(i, total, f"Reintentando imagen {i}/{total}")
         num = pregunta.get("img_num") or pregunta.get("num_imagen")
-        if not num:
-            continue
-        if pregunta.get("img_bytes"):
-            listas += 1
-            continue
         img_bytes = obtener_imagen(id_test, num, url)
         if img_bytes:
             pregunta["img_bytes"] = img_bytes
-            pregunta.setdefault(
-                "img_nombre",
-                f"img_{id_test}_{num}.jpg",
-            )
+            pregunta.setdefault("img_nombre", f"img_{id_test}_{num}.jpg")
             listas += 1
     return listas
 
 
-def completar_imagenes_tests(tests: list[dict]) -> tuple[int, int]:
+def completar_imagenes_tests(
+    tests: list[dict],
+    progreso: ProgresoFn | None = None,
+) -> tuple[int, int]:
     """Devuelve (imágenes_listas, imágenes_esperadas)."""
     esperadas = 0
     listas = 0
@@ -202,25 +213,35 @@ def completar_imagenes_tests(tests: list[dict]) -> tuple[int, int]:
         for pregunta in test.get("preguntas", []):
             if pregunta.get("img_num") or pregunta.get("num_imagen"):
                 esperadas += 1
-        listas += completar_imagenes_test(test)
+        listas += completar_imagenes_test(test, progreso=progreso)
     return listas, esperadas
 
 
-def extraer_test(url: str, descargar_imagenes: bool = True) -> dict | None:
+def extraer_test(
+    url: str,
+    descargar_imagenes: bool = True,
+    *,
+    progreso: ProgresoFn | None = None,
+) -> dict | None:
     """
     Extrae un test de Daypo al formato canónico de la app (ver utils).
     Descarga las imágenes de cada pregunta. Devuelve None si no se pudo.
     """
     url = _normalizar_url(url)
+    if progreso:
+        progreso(0, 0, "Conectando con Daypo…")
     parsed = _parsear_test(url)
     if parsed is None:
         return None
     id_test, titulo, preguntas = parsed
+    total = len(preguntas)
+    if progreso:
+        progreso(0, total, f"{total} preguntas detectadas")
 
     preguntas_final: list[dict] = []
     imagenes_esperadas = 0
     imagenes_ok = 0
-    for pregunta in preguntas:
+    for i, pregunta in enumerate(preguntas, start=1):
         img_bytes = None
         img_nombre = None
         img_num = pregunta.get("num_imagen")
@@ -228,9 +249,17 @@ def extraer_test(url: str, descargar_imagenes: bool = True) -> dict | None:
             imagenes_esperadas += 1
             img_nombre = f"img_{id_test}_{img_num}.jpg"
             if descargar_imagenes:
+                if progreso:
+                    progreso(i, total, f"Pregunta {i}/{total} · descargando imagen…")
                 img_bytes = obtener_imagen(id_test, img_num, url)
                 if img_bytes:
                     imagenes_ok += 1
+                elif progreso:
+                    progreso(i, total, f"Pregunta {i}/{total} · imagen no disponible")
+            elif progreso:
+                progreso(i, total, f"Pregunta {i}/{total}")
+        elif progreso:
+            progreso(i, total, f"Pregunta {i}/{total}")
         preguntas_final.append({
             "enunciado": pregunta["enunciado"],
             "opciones": pregunta["opciones"],

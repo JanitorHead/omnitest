@@ -59,27 +59,73 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
         st.session_state["error_inline"] = "No se detectaron enlaces válidos de Daypo."
         return False
 
-    status.write(f"🔗 {len(enlaces)} enlace(s) detectado(s)")
+    n_enlaces = len(enlaces)
+    status.write(f"🔗 {n_enlaces} enlace(s) detectado(s)")
+    progress.progress(0.05, text="Preparando extracción…")
+
     tests: list[dict] = []
     errores: list[str] = []
+    ultimo_log = 0
+
+    def _actualizar(actual: int, total: int, msg: str, indice_enlace: int) -> None:
+        nonlocal ultimo_log
+        if n_enlaces > 1:
+            etiqueta = f"Test {indice_enlace + 1}/{n_enlaces} · {msg}"
+        else:
+            etiqueta = msg
+
+        if total > 0:
+            fraccion_enlace = actual / total
+        elif actual == 0:
+            fraccion_enlace = 0.05
+        else:
+            fraccion_enlace = 1.0
+
+        base = 0.08 + (indice_enlace / n_enlaces) * 0.82
+        span = 0.82 / n_enlaces
+        pct = min(base + fraccion_enlace * span, 0.90)
+        progress.progress(pct, text=etiqueta)
+
+        # Evitar inundar el log en tests muy largos.
+        loguear = (
+            total <= 30
+            or actual == 0
+            or actual == total
+            or actual - ultimo_log >= 10
+        )
+        if loguear and (total > 0 or "Conectando" in msg or "detectadas" in msg):
+            status.write(etiqueta)
+            ultimo_log = actual
+
     for i, url in enumerate(enlaces):
+        ultimo_log = 0
         corto = url.rstrip("/").split("/")[-1][:40]
-        status.write(f"Descargando {i + 1}/{len(enlaces)}: {corto}…")
-        progress.progress(int((i / max(len(enlaces), 1)) * 85) / 100.0)
-        test = extraer_test(url)
+        status.write(f"Obteniendo {i + 1}/{n_enlaces}: {corto}…")
+
+        def _cb(actual: int, total: int, msg: str, idx: int = i) -> None:
+            _actualizar(actual, total, msg, idx)
+
+        test = extraer_test(url, progreso=_cb)
         if test is None:
             errores.append(url)
         else:
             tests.append(test)
 
-    progress.progress(0.95)
+    progress.progress(0.92, text="Validando estructura…")
     status.write("Validando estructura…")
 
     img_esperadas = sum(t.get("imagenes_esperadas", 0) for t in tests)
     img_ok = sum(t.get("imagenes_ok", 0) for t in tests)
     if img_esperadas and img_ok < img_esperadas:
         status.write(f"Reintentando imágenes ({img_ok}/{img_esperadas})…")
-        img_ok, img_esperadas = completar_imagenes_tests(tests)
+
+        def _cb_img(actual: int, total: int, msg: str) -> None:
+            pct = 0.92 + (actual / max(total, 1)) * 0.06
+            progress.progress(min(pct, 0.98), text=msg)
+            if total <= 20 or actual == total or actual % 5 == 0:
+                status.write(msg)
+
+        img_ok, img_esperadas = completar_imagenes_tests(tests, progreso=_cb_img)
     if img_esperadas:
         status.write(f"Imágenes: {img_ok}/{img_esperadas} descargadas")
         if img_ok < img_esperadas:
@@ -97,7 +143,8 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
     st.session_state["daypo_tests"] = tests
     st.session_state["daypo_errores"] = errores
     st.session_state["ia_procesado_con"] = ""
-    progress.progress(1.0)
+    total_preg = sum(len(t.get("preguntas", [])) for t in tests)
+    progress.progress(1.0, text=f"Listo — {total_preg} preguntas")
     return True
 
 
