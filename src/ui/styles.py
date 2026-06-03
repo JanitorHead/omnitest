@@ -61,10 +61,8 @@ div.stDownloadButton > button:hover {
 
 .stApp, [data-testid="stAppViewContainer"] {
     background-color: var(--bg) !important;
-    background-image:
-        radial-gradient(ellipse 90% 55% at 15% -5%, var(--highlight-soft), transparent 55%),
-        radial-gradient(ellipse 70% 45% at 95% 5%, var(--accent-soft), transparent 50%),
-        radial-gradient(ellipse 60% 35% at 50% 105%, rgba(236, 72, 153, 0.05), transparent 55%) !important;
+    background-image: var(--app-glow) !important;
+    background-repeat: no-repeat !important;
 }
 
 #MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; }

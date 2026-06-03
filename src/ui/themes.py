@@ -9,6 +9,9 @@ LIGHT_THEME_CSS = """
     --accent-glow-soft: rgba(124, 105, 239, 0.14);
     --highlight: #8B5CF6;
     --highlight-soft: rgba(139, 92, 246, 0.16);
+    --app-glow:
+        radial-gradient(ellipse 80% 55% at 50% -8%, rgba(128, 96, 224, 0.14), transparent 68%),
+        radial-gradient(ellipse 65% 48% at 50% 16%, rgba(91, 52, 164, 0.08), transparent 72%);
     --surface: #FFFFFF;
     --surface-2: #F3F4F6;
     --bg: #FFFFFF;
@@ -35,12 +38,6 @@ LIGHT_THEME_CSS = """
 """
 
 LIGHT_EXTRA_CSS = """
-.stApp, [data-testid="stAppViewContainer"] {
-    background-image:
-        radial-gradient(ellipse 95% 60% at 12% -8%, rgba(139, 92, 246, 0.24), transparent 58%),
-        radial-gradient(ellipse 75% 50% at 92% 2%, rgba(124, 105, 239, 0.20), transparent 55%),
-        radial-gradient(ellipse 65% 45% at 50% 108%, rgba(167, 139, 250, 0.16), transparent 58%) !important;
-}
 [data-testid="stVerticalBlockBorderWrapper"] {
     border: 1px solid #94A3B8 !important;
     box-shadow: 0 0 0 1px rgba(124, 105, 239, 0.22) !important;
@@ -56,6 +53,10 @@ DARK_THEME_CSS = """
     --accent-glow-soft: rgba(155, 138, 251, 0.18);
     --highlight: #A78BFA;
     --highlight-soft: rgba(167, 139, 250, 0.10);
+    --app-glow:
+        radial-gradient(ellipse 82% 58% at 50% -6%, rgba(128, 96, 224, 0.22), transparent 66%),
+        radial-gradient(ellipse 68% 50% at 50% 18%, rgba(91, 52, 164, 0.14), transparent 70%),
+        radial-gradient(ellipse 55% 40% at 50% 32%, rgba(69, 57, 173, 0.07), transparent 75%);
     --surface: #16181F;
     --surface-2: #1E2129;
     --bg: #0D0F14;
