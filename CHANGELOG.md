@@ -24,6 +24,7 @@ Mejoras de interfaz móvil y desktop tras el lanzamiento inicial.
 ### Notas
 
 - Si **omnitest.streamlit.app** sigue mostrando la UI antigua, Streamlit Cloud puede tardar unos minutos en redeployar tras el push; prueba recarga forzada (Ctrl+Shift+R).
+- El preview de WhatsApp/Telegram usa `og:description` generado por **Streamlit Cloud desde el README** (sin markdown en negrita en frases clave, o el texto se rompe).
 
 ---
 

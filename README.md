@@ -1,3 +1,5 @@
+Omnitest es la navaja suiza de estudio para carreras con mucho examen tipo test: Medicina y el MIR, oposiciones, enfermería, derecho. De cualquier fuente a tests para practicar.
+
 <p align="center">
   <img src="static/logo.svg" alt="Omnitest" width="180">
 </p>
@@ -25,7 +27,7 @@
 
 ## ¿Para qué sirve?
 
-Omnitest es la **navaja suiza de estudio** para carreras con mucho examen tipo test: Medicina y el MIR, oposiciones, enfermería, derecho…
+Omnitest es la navaja suiza de estudio para carreras con mucho examen tipo test: Medicina y el MIR, oposiciones, enfermería, derecho…
 
 Tomas preguntas **como estén** y las devuelves limpias en **Word, PDF, Anki, RemNote, un quiz HTML offline** o un ZIP de imágenes — con o sin respuestas marcadas.
 
