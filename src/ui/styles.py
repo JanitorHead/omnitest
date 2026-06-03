@@ -418,26 +418,38 @@ section.main,
     padding-bottom: 3.5rem;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] {
-    border: 1px solid var(--border-strong) !important;
-    border-radius: 12px !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
     background: var(--surface) !important;
     box-shadow: var(--shadow-sm) !important;
     margin-bottom: 0.75rem !important;
     transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease) !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"]:hover {
-    border-color: var(--accent) !important;
-    box-shadow: var(--shadow-md) !important;
+    border-color: var(--border-strong) !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child {
-    font-weight: 600 !important;
-    font-size: 0.9375rem !important;
+    font-family: var(--font) !important;
+    font-weight: var(--weight-semibold) !important;
+    font-size: var(--text-sm) !important;
+    letter-spacing: var(--tracking-ui) !important;
     color: var(--text) !important;
-    padding: 1.2rem 1.4rem !important;
-    min-height: 3.75rem;
-    opacity: 0.88;
+    padding: 1rem 1.15rem !important;
+    min-height: 3.25rem;
+    opacity: 1;
     background: var(--surface) !important;
     border-bottom: none !important;
+}
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child p,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child span,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] p {
+    font-family: var(--font) !important;
+    font-weight: var(--weight-semibold) !important;
+    font-size: var(--text-sm) !important;
+    letter-spacing: var(--tracking-ui) !important;
+    color: var(--text) !important;
+    -webkit-text-fill-color: var(--text) !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child:hover {
     opacity: 1;
@@ -614,16 +626,23 @@ div.stDownloadButton > button:hover {
     height: 4px !important;
     border-radius: 999px !important;
 }
+.stProgress label[data-testid="stProgressLabel"],
+.stProgress [data-testid="stProgressLabel"],
+.stProgress [data-testid="stProgressLabel"] p,
+.stProgress [data-testid="stMarkdownContainer"] p,
+.stProgress p {
+    font-family: var(--font) !important;
+    font-size: var(--text-sm) !important;
+    font-weight: var(--weight-medium) !important;
+    letter-spacing: var(--tracking-ui) !important;
+    color: var(--text) !important;
+    -webkit-text-fill-color: var(--text) !important;
+}
 .stProgress > div > div {
     background: var(--surface-2) !important;
-    border: 1px solid var(--border-strong) !important;
+    border: 1px solid var(--border) !important;
     border-radius: 999px !important;
     overflow: hidden !important;
-}
-.stProgress label[data-testid="stProgressLabel"],
-.stProgress p {
-    color: var(--text) !important;
-    font-size: var(--text-sm) !important;
 }
 
 /* st.status / st.expander — ver inject_button_fixes() (Streamlit 1.58 → stExpander) */
@@ -634,10 +653,11 @@ div.stDownloadButton > button:hover {
     padding: 0.85rem 1.15rem 1rem;
     background-color: var(--surface) !important;
     background-image: none !important;
-    border: 1px solid var(--border-strong) !important;
+    border: 1px solid var(--border) !important;
     border-radius: var(--radius-lg) !important;
     box-shadow: var(--shadow-sm) !important;
     color: var(--text) !important;
+    font-family: var(--font) !important;
 }
 .omni-worklog-header {
     display: flex;
@@ -649,6 +669,7 @@ div.stDownloadButton > button:hover {
     color: var(--text) !important;
 }
 .omni-worklog-title {
+    font-family: var(--font) !important;
     font-size: var(--text-sm);
     font-weight: var(--weight-semibold);
     color: var(--text) !important;
@@ -660,13 +681,19 @@ div.stDownloadButton > button:hover {
 }
 .omni-worklog-line {
     margin: 0.2rem 0;
+    font-family: var(--font) !important;
     font-size: var(--text-sm);
+    font-weight: var(--weight-normal);
+    letter-spacing: var(--tracking-body);
     color: var(--text) !important;
     line-height: 1.45;
 }
 .omni-worklog-foot {
     margin: 0.35rem 0 0;
+    font-family: var(--font) !important;
     font-size: var(--text-xs);
+    font-weight: var(--weight-normal);
+    letter-spacing: var(--tracking-body);
     color: var(--muted) !important;
     line-height: 1.45;
 }
@@ -1436,6 +1463,47 @@ div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) > [data-test
         padding-left: max(1.15rem, env(safe-area-inset-left, 0px)) !important;
         padding-right: max(1.15rem, env(safe-area-inset-right, 0px)) !important;
     }
+    /* Header — logo + botones siempre en la misma fila (arriba derecha) */
+    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        grid-template-rows: auto !important;
+        align-items: start !important;
+        width: 100% !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) > [data-testid="column"] {
+        flex: unset !important;
+        flex-basis: auto !important;
+        min-width: 0 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
+        > [data-testid="column"]:first-child {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        width: auto !important;
+        max-width: 100% !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
+        > [data-testid="column"]:last-child {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        width: auto !important;
+        max-width: none !important;
+        justify-self: end !important;
+        align-self: start !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.35rem !important;
+        width: auto !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) > [data-testid="column"] {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
     .omni-wordmark {
         gap: 0.4rem !important;
     }
@@ -1741,19 +1809,35 @@ div[data-testid="stElementContainer"]:has(.fuente-picker-marker)
     box-shadow: var(--shadow-sm) !important;
 }
 
-/* Panel Trabajando / log — borde visible en light */
+/* Panel Trabajando / log — borde fino como el resto de paneles */
 .block-container .omni-worklog-panel {
     background-color: {{BTN_SURFACE}} !important;
-    border: 1px solid {{PANEL_BORDER}} !important;
-    box-shadow: 0 0 0 1px {{PANEL_BORDER_SOFT}}, var(--shadow-sm) !important;
+    border: 1px solid {{BTN_BORDER}} !important;
+    box-shadow: var(--shadow-sm) !important;
     color: {{BTN_TEXT}} !important;
+    font-family: var(--font) !important;
 }
-.block-container .omni-worklog-title,
+.block-container .omni-worklog-title {
+    font-family: var(--font) !important;
+    font-weight: var(--weight-semibold) !important;
+    font-size: var(--text-sm) !important;
+    letter-spacing: var(--tracking-ui) !important;
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
 .block-container .omni-worklog-line {
+    font-family: var(--font) !important;
+    font-weight: var(--weight-normal) !important;
+    font-size: var(--text-sm) !important;
+    letter-spacing: var(--tracking-body) !important;
     color: {{BTN_TEXT}} !important;
     -webkit-text-fill-color: {{BTN_TEXT}} !important;
 }
 .block-container .omni-worklog-foot {
+    font-family: var(--font) !important;
+    font-weight: var(--weight-normal) !important;
+    font-size: var(--text-xs) !important;
+    letter-spacing: var(--tracking-body) !important;
     color: var(--muted) !important;
     -webkit-text-fill-color: var(--muted) !important;
 }
@@ -1832,19 +1916,42 @@ div[data-testid="stElementContainer"]:has(.fuente-picker-marker)
     fill: var(--accent) !important;
 }
 
-/* FAQ — bordes visibles en light (refuerzo final) */
+/* FAQ — borde fino + tipografía coherente */
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] {
-    border: 1px solid {{PANEL_BORDER}} !important;
-    box-shadow: 0 0 0 1px {{PANEL_BORDER_SOFT}}, var(--shadow-sm) !important;
+    border: 1px solid {{BTN_BORDER}} !important;
+    box-shadow: var(--shadow-sm) !important;
     background-color: {{BTN_SURFACE}} !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child,
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [class*="st-emotion-cache"] {
     background-color: {{BTN_SURFACE}} !important;
 }
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child p,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child span,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] p {
+    font-family: var(--font) !important;
+    font-weight: var(--weight-semibold) !important;
+    font-size: var(--text-sm) !important;
+    letter-spacing: var(--tracking-ui) !important;
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
 .block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"],
 .block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] [class*="st-emotion-cache"] {
     background-color: {{BTN_SURFACE}} !important;
+}
+
+/* Progreso — tipografía coherente */
+.stProgress label,
+.stProgress [data-testid="stProgressLabel"],
+.stProgress [data-testid="stProgressLabel"] p,
+.stProgress [data-testid="stMarkdownContainer"] p {
+    font-family: var(--font) !important;
+    font-size: var(--text-sm) !important;
+    font-weight: var(--weight-medium) !important;
+    letter-spacing: var(--tracking-ui) !important;
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
 }
 
 div[data-testid="stElementContainer"]:has(.split-dl-marker)
