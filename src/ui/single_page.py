@@ -60,15 +60,14 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
         return False
 
     n_enlaces = len(enlaces)
-    status.write(f"🔗 {n_enlaces} enlace(s) detectado(s)")
+    detalle = status.empty()
     progress.progress(0.05, text="Preparando extracción…")
+    detalle.markdown(f"🔗 {n_enlaces} enlace(s) detectado(s)")
 
     tests: list[dict] = []
     errores: list[str] = []
-    ultimo_log = 0
 
     def _actualizar(actual: int, total: int, msg: str, indice_enlace: int) -> None:
-        nonlocal ultimo_log
         if n_enlaces > 1:
             etiqueta = f"Test {indice_enlace + 1}/{n_enlaces} · {msg}"
         else:
@@ -85,26 +84,16 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
         span = 0.82 / n_enlaces
         pct = min(base + fraccion_enlace * span, 0.90)
         progress.progress(pct, text=etiqueta)
-
-        # Evitar inundar el log en tests muy largos.
-        loguear = (
-            total <= 30
-            or actual == 0
-            or actual == total
-            or actual - ultimo_log >= 10
-        )
-        if loguear and (total > 0 or "Conectando" in msg or "detectadas" in msg):
-            status.write(etiqueta)
-            ultimo_log = actual
+        detalle.markdown(etiqueta)
 
     for i, url in enumerate(enlaces):
-        ultimo_log = 0
         corto = url.rstrip("/").split("/")[-1][:40]
-        status.write(f"Obteniendo {i + 1}/{n_enlaces}: {corto}…")
 
         def _cb(actual: int, total: int, msg: str, idx: int = i) -> None:
             _actualizar(actual, total, msg, idx)
 
+        if n_enlaces > 1:
+            detalle.markdown(f"Test {i + 1}/{n_enlaces}: {corto}…")
         test = extraer_test(url, progreso=_cb)
         if test is None:
             errores.append(url)
@@ -112,22 +101,21 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
             tests.append(test)
 
     progress.progress(0.92, text="Validando estructura…")
-    status.write("Validando estructura…")
+    detalle.markdown("Validando estructura…")
 
     img_esperadas = sum(t.get("imagenes_esperadas", 0) for t in tests)
     img_ok = sum(t.get("imagenes_ok", 0) for t in tests)
     if img_esperadas and img_ok < img_esperadas:
-        status.write(f"Reintentando imágenes ({img_ok}/{img_esperadas})…")
+        detalle.markdown(f"Reintentando imágenes ({img_ok}/{img_esperadas})…")
 
         def _cb_img(actual: int, total: int, msg: str) -> None:
             pct = 0.92 + (actual / max(total, 1)) * 0.06
             progress.progress(min(pct, 0.98), text=msg)
-            if total <= 20 or actual == total or actual % 5 == 0:
-                status.write(msg)
+            detalle.markdown(msg)
 
         img_ok, img_esperadas = completar_imagenes_tests(tests, progreso=_cb_img)
     if img_esperadas:
-        status.write(f"Imágenes: {img_ok}/{img_esperadas} descargadas")
+        detalle.markdown(f"Imágenes: {img_ok}/{img_esperadas} descargadas")
         if img_ok < img_esperadas:
             st.session_state["daypo_aviso_imagenes"] = (
                 f"Solo se pudieron descargar {img_ok} de {img_esperadas} imágenes. "
@@ -145,6 +133,7 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
     st.session_state["ia_procesado_con"] = ""
     total_preg = sum(len(t.get("preguntas", [])) for t in tests)
     progress.progress(1.0, text=f"Listo — {total_preg} preguntas")
+    detalle.markdown(f"✅ {total_preg} preguntas extraídas")
     return True
 
 
