@@ -5,6 +5,39 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ---
 
+## [1.0.2] — 2026-06-02
+
+Iteración de pulido UI tras **1.0.1**: progreso legible, exportación Word/PDF coherente en claro/oscuro, modal de APIs alineado con Streamlit 1.58 y FAQ sin artefactos en las esquinas.
+
+### Añadido
+
+- Leyenda bajo la rejilla de exportación explicando **Unificados**, **Separados** (un ZIP con un documento por test) y **con/sin respuestas**.
+- Etiquetas de progreso con **mensaje + % + ETA** en extracción IA y en barras de preview/export.
+- Desarrollo local: Streamlit en `localhost` con tema oscuro por defecto en `config.toml`.
+
+### Cambiado
+
+- **Word/PDF**: popover + botón partido sustituido por **selectbox + Descargar** secundario (más claro y estable).
+- Etiquetas de export: «Todo junto» / «Un archivo por test» → **Unificados** / **Separados**.
+- Header con **contenedor horizontal flex** (logo · espaciador · tema · APIs), responsive en móvil y desktop.
+- CSS de progreso apuntando a `[data-testid="stProgressBarTrack"]` (Streamlit 1.58), sin recortar el texto del label.
+
+### Corregido
+
+- Texto **ilegible encima de la barra de progreso** (solo se veían los pies de las letras) en conversión, preview y export.
+- **Selectbox Word/PDF** en modo oscuro: fondo blanco y menú desalineado (selectores globales; `.export-grid` no envuelve widgets en el DOM de Streamlit).
+- **Campos API key** en el modal ⚙: inputs oscuros en dark mode (`stTextInputRootElement`, Streamlit 1.58).
+- **Icono ojo** del password: alineado a la **derecha** dentro del cuadro, sin tapar el texto (estructura `base-input` interna).
+- **FAQ expanders**: bordes duplicados y «mordisco» en esquinas; ahora un solo borde como el resto de paneles.
+- Preview/revisión: resumen de preguntas legible tras corregir estilos de progreso compartidos.
+
+### Notas
+
+- El toggle claro/oscuro de la app sigue mandando sobre los colores finos vía CSS inyectado; el tema nativo de Streamlit en `config.toml` evita widgets blancos por defecto en dark.
+- Para probar en local: `streamlit run app.py` (abre navegador en localhost).
+
+---
+
 ## [1.0.1] — 2026-06-02
 
 Mejoras de interfaz móvil y desktop tras el lanzamiento inicial.
@@ -96,6 +129,7 @@ Primera versión pública con flujo single-page, multi-API y exportación comple
 
 ---
 
+[1.0.2]: https://github.com/JanitorHead/omnitest/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/JanitorHead/omnitest/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JanitorHead/omnitest/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/JanitorHead/omnitest/compare/v0.1.0...v0.2.0

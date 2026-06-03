@@ -2,11 +2,13 @@
 gatherUsageStats = false
 
 [server]
-headless = true
+# Local: abre el navegador y solo escucha en localhost (sin URL de red pública)
+headless = false
+address = "localhost"
 
 [theme]
-base = "light"
-primaryColor = "#7C69EF"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F3F4F6"
-textColor = "#111827"
+base = "dark"
+primaryColor = "#9B8AFB"
+backgroundColor = "#0D0F14"
+secondaryBackgroundColor = "#16181F"
+textColor = "#F1F5F9"

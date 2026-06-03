@@ -38,13 +38,13 @@ def _variantes_word_pdf(
 ) -> list[dict[str, Any]]:
     variantes = [
         {
-            "label": "Todo junto · con respuestas",
+            "label": "Unificados · con respuestas",
             "key": combinado_con,
             "fname": fname_con,
             "mime": mime,
         },
         {
-            "label": "Todo junto · sin respuestas",
+            "label": "Unificados · sin respuestas",
             "key": combinado_sin,
             "fname": fname_sin,
             "mime": mime,
@@ -53,13 +53,13 @@ def _variantes_word_pdf(
     if es_multi:
         variantes.extend([
             {
-                "label": "Un archivo por test · con respuestas",
+                "label": "Separados · con respuestas",
                 "key": zip_con,
                 "fname": fname_zip_con,
                 "mime": MIME_ZIP,
             },
             {
-                "label": "Un archivo por test · sin respuestas",
+                "label": "Separados · sin respuestas",
                 "key": zip_sin,
                 "fname": fname_zip_sin,
                 "mime": MIME_ZIP,
@@ -81,49 +81,27 @@ def _render_split_download(
         st.caption("No disponible para este conjunto de tests.")
         return
 
-    opt_key = f"export_opt_{card_id}"
-    if opt_key not in st.session_state:
-        st.session_state[opt_key] = 0
-    idx = min(st.session_state[opt_key], len(variantes) - 1)
+    labels = [v["label"] for v in variantes]
+
+    st.markdown(_tarjeta_export(icon_id, nombre, desc), unsafe_allow_html=True)
+    selected = st.selectbox(
+        "Opciones de descarga",
+        options=labels,
+        key=f"export_sel_{card_id}",
+        label_visibility="collapsed",
+    )
+    idx = labels.index(selected)
     actual = variantes[idx]
     data = res.get(actual["key"]) or b""
 
-    st.markdown(_tarjeta_export(icon_id, nombre, desc), unsafe_allow_html=True)
-    st.markdown(
-        f'<p class="split-dl-current">{html_lib.escape(actual["label"])}</p>',
-        unsafe_allow_html=True,
+    st.download_button(
+        "Descargar",
+        data=data,
+        file_name=actual["fname"],
+        mime=actual["mime"],
+        use_container_width=True,
+        key=f"dl_{card_id}",
     )
-    st.markdown(f'<div class="split-dl-marker" data-card="{card_id}"></div>', unsafe_allow_html=True)
-
-    c_main, c_menu = st.columns([6, 1], gap="small")
-    with c_main:
-        st.download_button(
-            "Descargar",
-            data=data,
-            file_name=actual["fname"],
-            mime=actual["mime"],
-            use_container_width=True,
-            key=f"dl_{card_id}_{idx}",
-            type="primary",
-        )
-    with c_menu:
-        with st.popover(
-            " ",
-            help="Formato y respuestas",
-            type="secondary",
-            use_container_width=True,
-            key=f"pop_{card_id}",
-        ):
-            for i, var in enumerate(variantes):
-                pref = "✓ " if i == idx else ""
-                if st.button(
-                    f"{pref}{var['label']}",
-                    key=f"pick_{card_id}_{i}",
-                    use_container_width=True,
-                    type="secondary",
-                ):
-                    st.session_state[opt_key] = i
-                    st.rerun()
 
 
 def _render_simple_download(
@@ -228,6 +206,23 @@ def render_export() -> None:
         )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+    if word_vars or pdf_vars:
+        por_test = (
+            '<li><strong>Separados</strong>: un ZIP con un documento distinto por cada test.</li>'
+            if es_multi
+            else ""
+        )
+        st.markdown(
+            '<div class="export-format-legend">'
+            "<p>Word y PDF — opciones del desplegable</p>"
+            "<ul>"
+            "<li><strong>Unificados</strong>: un solo archivo con todos los tests juntos.</li>"
+            f"{por_test}"
+            "<li><strong>Con / sin respuestas</strong>: incluye o no la opción correcta marcada.</li>"
+            "</ul></div>",
+            unsafe_allow_html=True,
+        )
 
     st.markdown("---")
     if st.button("← Convertir otro material", use_container_width=True):

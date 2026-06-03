@@ -29,19 +29,18 @@ from .work_log import work_log
 
 
 def _render_header() -> None:
-    c_brand, c_tools = st.columns([8, 1], gap="small")
-    with c_brand:
-        st.markdown(wordmark_html(), unsafe_allow_html=True)
-    with c_tools:
-        st.markdown('<div class="omni-header-tools-marker"></div>', unsafe_allow_html=True)
-        c_theme, c_settings = st.columns(2, gap="small")
-        with c_theme:
-            render_theme_toggle()
-        with c_settings:
-            n = len(proveedores_configurados(st.session_state["api_config"]))
-            tip = f"{n} API(s) activa(s)" if n else "Configurar APIs"
-            if st.button("⚙️", key="btn_api_settings", help=tip, type="secondary"):
-                api_modal()
+    st.markdown('<div class="omni-header-marker" aria-hidden="true"></div>', unsafe_allow_html=True)
+    with st.container(horizontal=True, horizontal_alignment="left", gap="small"):
+        st.markdown(
+            f'<div class="omni-header-brand">{wordmark_html()}</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="omni-header-spacer" aria-hidden="true"></div>', unsafe_allow_html=True)
+        render_theme_toggle()
+        n = len(proveedores_configurados(st.session_state["api_config"]))
+        tip = f"{n} API(s) activa(s)" if n else "Configurar APIs"
+        if st.button("⚙️", key="btn_api_settings", help=tip, type="secondary"):
+            api_modal()
 
 
 def _render_hero() -> None:
@@ -154,15 +153,17 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
 
 def _procesar_ia(texto: str, archivos, progress, status) -> bool:
     config = st.session_state["api_config"]
+    inicio = time.monotonic()
 
     def _log(msg: str):
         status.write(msg)
 
-    def _progress(p: int):
-        progress.progress(min(p, 99) / 100.0)
+    def _progress(p: int, msg: str = "Procesando con IA…") -> None:
+        fr = min(p, 99) / 100.0
+        progress.progress(fr, text=etiqueta_progreso(msg, fr, inicio))
 
     status.markdown("**Iniciando…**")
-    _progress(5)
+    _progress(5, "Preparando extracción…")
 
     try:
         datos, etiqueta, _fb, pid, modelo = extraer_con_fallback(
@@ -192,13 +193,13 @@ def _procesar_ia(texto: str, archivos, progress, status) -> bool:
     n = len(datos["preguntas"])
     status.write(f"✅ {n} preguntas encontradas")
     status.markdown("**Validando estructura…**")
-    _progress(95)
+    _progress(95, "Validando estructura…")
     st.session_state["ia_datos"] = datos
     st.session_state["ia_procesado_con"] = etiqueta
     st.session_state["ia_pid_usado"] = pid
     st.session_state["ia_modelo_usado"] = modelo
     st.session_state["ia_chat"] = []
-    _progress(100)
+    _progress(100, "Listo")
     return True
 
 

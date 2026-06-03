@@ -3,6 +3,7 @@
 OMNI_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
 
 :root {
     --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -128,6 +129,9 @@ section.main,
     gap: 0.45rem;
     font-family: var(--font);
     line-height: 1;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
 }
 .omni-wordmark-text {
     color: var(--text);
@@ -137,9 +141,10 @@ section.main,
     margin-left: 0;
 }
 .omni-logo {
-    width: 8.5rem;
+    width: 12rem;
     height: auto;
-    max-width: 100%;
+    max-width: min(100%, 12rem);
+    min-width: 9rem;
     flex-shrink: 0;
     display: block;
     border-radius: 0;
@@ -418,50 +423,66 @@ section.main,
     padding-bottom: 3.5rem;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] {
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: var(--radius) !important;
     background: var(--surface) !important;
-    box-shadow: var(--shadow-sm) !important;
+    box-shadow: none !important;
+    outline: none !important;
     margin-bottom: 0.75rem !important;
-    transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease) !important;
+    overflow: hidden !important;
+    transition: border-color 0.2s var(--ease) !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"]:hover {
-    border-color: var(--border-strong) !important;
-    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--omni-panel-hover-border) !important;
+    box-shadow: none !important;
+}
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div,
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child {
-    font-family: var(--font) !important;
-    font-weight: var(--weight-semibold) !important;
-    font-size: var(--text-sm) !important;
-    letter-spacing: var(--tracking-ui) !important;
-    color: var(--text) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
     padding: 1rem 1.15rem !important;
     min-height: 3.25rem;
     opacity: 1;
-    background: var(--surface) !important;
+    background: transparent !important;
     border-bottom: none !important;
 }
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"],
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] p,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] span,
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child p,
-.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child span,
-.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] p {
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child span {
     font-family: var(--font) !important;
     font-weight: var(--weight-semibold) !important;
     font-size: var(--text-sm) !important;
     letter-spacing: var(--tracking-ui) !important;
     color: var(--text) !important;
     -webkit-text-fill-color: var(--text) !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
 }
-.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child:hover {
-    opacity: 1;
-}
-.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child svg {
-    opacity: 0.4 !important;
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child svg,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stIconMaterial"] {
+    font-family: "Material Symbols Rounded", "Material Icons" !important;
+    flex-shrink: 0 !important;
     width: 1rem !important;
     height: 1rem !important;
+    font-size: 1.125rem !important;
+    line-height: 1 !important;
+    opacity: 0.45 !important;
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] {
     padding: 0 1.4rem 1.4rem !important;
-    background: var(--surface) !important;
+    background: transparent !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p,
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] [data-testid="stMarkdownContainer"] li,
@@ -621,14 +642,67 @@ div.stDownloadButton > button:hover {
     border-color: var(--accent) !important;
 }
 
-.stProgress > div > div > div {
-    background: var(--accent) !important;
-    height: 4px !important;
+/* Solo la pista de la barra — el label también es div > div y no debe medir 4px */
+.stProgress > div:first-child > div,
+.stProgress > div:first-child [data-testid="stMarkdownContainer"],
+.stProgress > div:first-child [data-testid="stMarkdownContainer"] > div {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+}
+.stProgress > div:last-child {
+    height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+}
+.stProgress [data-testid="stProgressBarTrack"] {
+    background: var(--surface-2) !important;
+    border: none !important;
     border-radius: 999px !important;
+    overflow: hidden !important;
+    height: 4px !important;
+}
+.stProgress [data-testid="stProgressBarTrack"] > div {
+    background: var(--accent) !important;
+    height: 100% !important;
+    border-radius: 999px !important;
+}
+.stProgress {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0.75rem 0 0.35rem !important;
+    overflow: visible !important;
+    position: relative !important;
+    z-index: 5 !important;
+}
+.stProgress > div {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+.stProgress > div:first-child {
+    position: relative !important;
+    z-index: 6 !important;
+    overflow: visible !important;
+    min-height: 1.3rem !important;
+    margin-bottom: 0.35rem !important;
+    padding-bottom: 0.15rem !important;
+    background: var(--bg) !important;
 }
 .stProgress label[data-testid="stProgressLabel"],
 .stProgress [data-testid="stProgressLabel"],
+.stProgress [data-testid="stProgressLabel"] > div,
 .stProgress [data-testid="stProgressLabel"] p,
+.stProgress > div:first-child,
+.stProgress > div:first-child [data-testid="stMarkdownContainer"],
+.stProgress > div:first-child [data-testid="stMarkdownContainer"] p,
+.stProgress > div:first-child [data-testid="stMarkdownContainer"] span,
+.stProgress > div:first-child p,
+.stProgress > div:first-child span,
 .stProgress [data-testid="stMarkdownContainer"] p,
 .stProgress p {
     font-family: var(--font) !important;
@@ -637,12 +711,29 @@ div.stDownloadButton > button:hover {
     letter-spacing: var(--tracking-ui) !important;
     color: var(--text) !important;
     -webkit-text-fill-color: var(--text) !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 0 0.4rem 0 !important;
+    margin: 0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    line-height: 1.45 !important;
+    min-height: auto !important;
 }
-.stProgress > div > div {
-    background: var(--surface-2) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 999px !important;
-    overflow: hidden !important;
+[data-testid="stElementContainer"]:has(.stProgress),
+[data-testid="stElementContainer"]:has([data-testid="stProgress"]) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0.85rem 0 0.15rem !important;
+    margin-top: 0.35rem !important;
+    overflow: visible !important;
+    position: relative !important;
+    z-index: 5 !important;
+}
+.block-container .st-key-btn_convertir {
+    margin-bottom: 0.15rem !important;
 }
 
 /* st.status / st.expander — ver inject_button_fixes() (Streamlit 1.58 → stExpander) */
@@ -728,102 +819,6 @@ div.stDownloadButton > button:hover {
 .omni-worklog-icon--err {
     color: var(--error);
     background: rgba(220, 38, 38, 0.12);
-}
-
-.split-dl-current {
-    margin: 0.15rem 0 0.35rem;
-    font-size: 0.75rem;
-    color: var(--muted);
-    line-height: 1.35;
-}
-.split-dl-marker { display: none; }
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] {
-    gap: 0 !important;
-    align-items: stretch !important;
-    margin-top: 0 !important;
-}
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:first-child .stDownloadButton button,
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:first-child button {
-    border-top-right-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-    border-right: none !important;
-}
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child button,
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-baseweb="button"],
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button {
-    border-top-left-radius: 0 !important;
-    border-bottom-left-radius: 0 !important;
-    min-width: 44px !important;
-    max-width: 44px !important;
-    width: 44px !important;
-    min-height: var(--btn-height) !important;
-    padding: 0 !important;
-    background: var(--surface) !important;
-    color: transparent !important;
-    border: 1px solid var(--border-strong) !important;
-    font-size: 0 !important;
-    line-height: 0 !important;
-    position: relative !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child button *,
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-baseweb="button"] *,
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button * {
-    display: none !important;
-}
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child button::before,
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-baseweb="button"]::before,
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button::before {
-    content: "" !important;
-    display: block !important;
-    width: 0 !important;
-    height: 0 !important;
-    border-left: 5px solid transparent !important;
-    border-right: 5px solid transparent !important;
-    border-top: 6px solid var(--text) !important;
-    margin: 0 auto !important;
-}
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child button:hover,
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button:hover {
-    background: var(--highlight-soft) !important;
-    border-color: var(--accent) !important;
-}
-.export-grid div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:first-child .stDownloadButton button {
-    background: var(--accent) !important;
-    color: #FFFFFF !important;
-    border: none !important;
-    box-shadow: 0 2px 10px var(--accent-glow) !important;
-}
-.export-grid div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:first-child .stDownloadButton button:hover {
-    background: var(--accent-hover) !important;
-}
-[data-testid="stPopoverBody"] {
-    background: var(--surface) !important;
-    border: 1px solid var(--border-strong) !important;
-    border-radius: var(--radius) !important;
-    box-shadow: var(--shadow-md) !important;
-}
-[data-testid="stPopoverBody"] p,
-[data-testid="stPopoverBody"] button {
-    color: var(--text) !important;
 }
 
 .model-badge {
@@ -932,6 +927,7 @@ div[data-testid="stElementContainer"]:has(.split-dl-marker)
     font-size: var(--btn-font) !important;
     letter-spacing: var(--btn-tracking) !important;
     min-height: var(--btn-height) !important;
+    box-shadow: none !important;
 }
 .export-grid [data-testid="column"] .stDownloadButton button:hover,
 .export-grid [data-testid="column"] button[kind="secondary"]:hover {
@@ -939,6 +935,81 @@ div[data-testid="stElementContainer"]:has(.split-dl-marker)
     border-color: var(--accent) !important;
     color: var(--text) !important;
     box-shadow: var(--btn-hover-glow) !important;
+}
+[data-testid="stSelectbox"] {
+    margin: 0.15rem 0 0.35rem !important;
+}
+[data-testid="stSelectbox"] label {
+    display: none !important;
+}
+[data-testid="stSelectbox"] div[data-baseweb="select"],
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"],
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div > div,
+[data-testid="stSelectbox"] div[data-baseweb="select"] [data-baseweb="input"],
+[data-testid="stSelectbox"] [data-testid="stSelectboxVirtualDropdown"] {
+    background: var(--surface) !important;
+    background-color: var(--surface) !important;
+    background-image: none !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text) !important;
+}
+[data-testid="stSelectbox"] div[data-baseweb="select"] span,
+[data-testid="stSelectbox"] div[data-baseweb="select"] p,
+[data-testid="stSelectbox"] div[data-baseweb="select"] input {
+    color: var(--text) !important;
+    -webkit-text-fill-color: var(--text) !important;
+}
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"] > div {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--text) !important;
+    -webkit-text-fill-color: var(--text) !important;
+}
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"] {
+    border: 1px solid var(--border-strong) !important;
+    border-radius: var(--btn-radius) !important;
+    min-height: 2.35rem !important;
+    font-family: var(--font) !important;
+    font-size: 0.8125rem !important;
+}
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"]:focus-within,
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"][aria-expanded="true"] {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px var(--accent-soft) !important;
+    background-color: var(--surface) !important;
+}
+[data-testid="stSelectbox"] svg {
+    color: var(--muted) !important;
+    fill: var(--muted) !important;
+}
+
+.export-format-legend {
+    margin: 1.35rem 0 0.5rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    font-size: 0.8125rem;
+    color: var(--muted);
+    line-height: 1.55;
+}
+.export-format-legend p {
+    margin: 0 0 0.45rem;
+    color: var(--text);
+    font-weight: var(--weight-semibold);
+    font-size: 0.8125rem;
+}
+.export-format-legend ul {
+    margin: 0;
+    padding-left: 1.15rem;
+}
+.export-format-legend li {
+    margin: 0.2rem 0;
+}
+.export-format-legend strong {
+    color: var(--text);
+    font-weight: var(--weight-semibold);
 }
 
 .banner-amber {
@@ -958,6 +1029,15 @@ div[data-testid="stElementContainer"]:has(.split-dl-marker)
     font-weight: 600;
     color: var(--text);
     margin-bottom: 0.25rem;
+    line-height: 1.35;
+    height: auto !important;
+    overflow: visible !important;
+}
+.block-container [data-testid="stMarkdownContainer"] .review-summary,
+.block-container p.review-summary {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
 }
 
 /* Toolbar — ver inject_button_fixes() al final del render */
@@ -982,18 +1062,6 @@ div[data-testid="stElementContainer"]:has(.split-dl-marker)
 }
 div[data-testid="stRadio"] label {
     transition: color 0.15s var(--ease) !important;
-}
-[data-testid="stExpander"] {
-    border: 1px solid var(--border-strong) !important;
-    border-radius: var(--radius-lg) !important;
-    background: var(--surface) !important;
-    box-shadow: var(--shadow-sm) !important;
-    overflow: hidden !important;
-    transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease) !important;
-}
-[data-testid="stExpander"]:hover {
-    border-color: var(--omni-panel-hover-border) !important;
-    box-shadow: var(--shadow-md) !important;
 }
 
 .stCaption,
@@ -1074,19 +1142,83 @@ div[data-testid="stModal"] > div,
     border: none !important;
     box-shadow: none !important;
 }
-[data-testid="stDialog"] [data-testid="stTextInput"] input,
-[data-testid="stDialog"] [data-testid="stTextInput"] div[data-baseweb="input"] {
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] {
+    display: flex !important;
+    align-items: stretch !important;
     background: var(--input-bg) !important;
+    background-color: var(--input-bg) !important;
+    background-image: none !important;
     border: 1px solid var(--input-border) !important;
     border-radius: var(--radius) !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] > div[data-baseweb="base-input"],
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] > div {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
     font-family: var(--font) !important;
     font-size: var(--text-sm) !important;
     color: var(--text) !important;
-    min-height: var(--ui-height) !important;
+    -webkit-text-fill-color: var(--text) !important;
+    min-height: 2.625rem !important;
+    height: auto !important;
     box-shadow: none !important;
+    padding-left: 0.85rem !important;
+    padding-right: 0.35rem !important;
 }
-[data-testid="stDialog"] [data-testid="stTextInput"] input:focus,
-[data-testid="stDialog"] [data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] button[type="button"] {
+    flex: 0 0 2.75rem !important;
+    width: 2.75rem !important;
+    min-width: 2.75rem !important;
+    height: auto !important;
+    align-self: stretch !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    border-left: 1px solid var(--input-border) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    color: var(--muted) !important;
+    order: 99 !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] button[type="button"] svg {
+    width: 1.125rem !important;
+    height: 1.125rem !important;
+    flex-shrink: 0 !important;
+    display: block !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stIconMaterial"],
+[data-testid="stDialog"] [data-testid="stTextInput"] button [data-testid="stIconMaterial"],
+[data-testid="stDialog"] [data-testid="stTextInput"] button span {
+    font-family: "Material Symbols Rounded", "Material Icons" !important;
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"]:focus-within {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 3px var(--accent-glow-soft) !important;
 }
@@ -1405,56 +1537,60 @@ def inject_styles() -> None:
 
 BUTTON_FIXES_CSS = """
 <style>
-/* Header — wordmark + toolbar (tema + APIs juntos) */
-div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    grid-template-rows: auto !important;
-    align-items: start !important;
-    column-gap: 0.35rem !important;
-    row-gap: 0 !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-}
-div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) > [data-testid="column"] {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+/* Header — logo + botones en una fila (flex container, sin columnas) */
+.omni-header-marker { display: none; }
+.omni-header-spacer {
+    flex: 1 1 auto !important;
     min-width: 0 !important;
-    margin: 0 !important;
     width: auto !important;
-    max-width: none !important;
-    flex: unset !important;
+    height: 1px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: hidden !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-    > [data-testid="column"]:first-child {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
+.omni-header-brand {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: calc(100% - 6rem) !important;
 }
-div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-    > [data-testid="column"]:last-child {
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-    justify-self: end !important;
-    align-self: start !important;
-    margin-top: 0.1rem !important;
-}
-div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) {
+[data-testid="stElementContainer"]:has(.omni-header-marker)
+    + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"],
+div[data-testid="stHorizontalBlock"]:has(.omni-header-brand) {
     display: flex !important;
     flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
     gap: 0.35rem !important;
-    width: auto !important;
-    justify-content: flex-end !important;
-    align-items: center !important;
-}
-div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) > [data-testid="column"] {
-    width: auto !important;
-    flex: 0 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
     padding: 0 !important;
+    box-sizing: border-box !important;
+}
+[data-testid="stElementContainer"]:has(.omni-header-marker)
+    + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div,
+div[data-testid="stHorizontalBlock"]:has(.omni-header-brand) > div,
+div[data-testid="stHorizontalBlock"]:has(.omni-header-brand) > [data-testid="column"] {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+[data-testid="stElementContainer"]:has(.omni-header-marker)
+    + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div:has(.omni-header-brand),
+div[data-testid="stHorizontalBlock"]:has(.omni-header-brand) > div:has(.omni-header-brand),
+div[data-testid="stHorizontalBlock"]:has(.omni-header-brand) > [data-testid="column"]:has(.omni-header-brand) {
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: calc(100% - 6rem) !important;
+}
+[data-testid="stElementContainer"]:has(.omni-header-marker)
+    + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div:has(.omni-header-spacer),
+div[data-testid="stHorizontalBlock"]:has(.omni-header-brand) > div:has(.omni-header-spacer) {
+    flex: 1 1 auto !important;
     min-width: 0 !important;
 }
 
@@ -1463,57 +1599,27 @@ div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) > [data-test
         padding-left: max(1.15rem, env(safe-area-inset-left, 0px)) !important;
         padding-right: max(1.15rem, env(safe-area-inset-right, 0px)) !important;
     }
-    /* Header — logo + botones siempre en la misma fila (arriba derecha) */
-    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) {
-        display: grid !important;
-        grid-template-columns: minmax(0, 1fr) auto !important;
-        grid-template-rows: auto !important;
-        align-items: start !important;
-        width: 100% !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark) > [data-testid="column"] {
-        flex: unset !important;
-        flex-basis: auto !important;
-        min-width: 0 !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-        > [data-testid="column"]:first-child {
-        grid-column: 1 !important;
-        grid-row: 1 !important;
-        width: auto !important;
-        max-width: 100% !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
-        > [data-testid="column"]:last-child {
-        grid-column: 2 !important;
-        grid-row: 1 !important;
-        width: auto !important;
-        max-width: none !important;
-        justify-self: end !important;
-        align-self: start !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) {
-        display: flex !important;
-        flex-direction: row !important;
+    [data-testid="stElementContainer"]:has(.omni-header-marker)
+        + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] {
         flex-wrap: nowrap !important;
-        gap: 0.35rem !important;
-        width: auto !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(.omni-header-tools-marker) > [data-testid="column"] {
-        flex: 0 0 auto !important;
-        width: auto !important;
-        min-width: 0 !important;
+    .omni-header-brand {
+        max-width: calc(100% - 6.25rem) !important;
     }
     .omni-wordmark {
-        gap: 0.4rem !important;
+        gap: 0.35rem !important;
+        max-width: 100% !important;
     }
     .omni-wordmark-text {
         font-size: 2.125rem !important;
         margin-left: 0 !important;
     }
     .omni-logo {
-        width: 8rem !important;
+        width: 10.5rem !important;
+        min-width: 8.5rem !important;
         height: auto !important;
+        max-width: 100% !important;
+        display: block !important;
     }
     .omni-hero-gap {
         height: 4.25rem !important;
@@ -1853,98 +1959,116 @@ div[data-testid="stElementContainer"]:has(.fuente-picker-marker)
     padding: 0 !important;
 }
 
-/* st.status → stExpander (Streamlit 1.58) — anular Emotion inline */
-.block-container [data-testid="stExpander"],
-.block-container .stExpander {
+/* FAQ expanders — misma estética que paneles Daypo/export */
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"],
+.block-container:has(.omni-faq-marker) .stExpander {
     background-color: {{BTN_SURFACE}} !important;
     background-image: none !important;
-    border: 1px solid {{PANEL_BORDER}} !important;
-    border-radius: var(--radius-lg) !important;
-    box-shadow: 0 0 0 1px {{PANEL_BORDER_SOFT}}, var(--shadow-sm) !important;
+    border: 1px solid {{BTN_BORDER}} !important;
+    border-radius: var(--radius) !important;
+    box-shadow: none !important;
+    outline: none !important;
     overflow: hidden !important;
 }
-.block-container [data-testid="stExpander"] > div {
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"]:hover {
+    border-color: var(--omni-panel-hover-border) !important;
+    box-shadow: none !important;
+}
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div,
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] {
     background-color: transparent !important;
     background-image: none !important;
-}
-.block-container [data-testid="stExpander"] > div > div:first-child {
-    background-color: {{TRACK_BG}} !important;
-    background-image: none !important;
-    color: {{BTN_TEXT}} !important;
-    border-bottom: 1px solid {{TRACK_BORDER}} !important;
-}
-.block-container [data-testid="stExpander"] [class*="st-emotion-cache"] {
-    background-image: none !important;
-    color: {{BTN_TEXT}} !important;
-    -webkit-text-fill-color: {{BTN_TEXT}} !important;
-}
-.block-container [data-testid="stExpander"] > div > div:first-child [class*="st-emotion-cache"] {
-    background-color: {{TRACK_BG}} !important;
-}
-.block-container [data-testid="stExpanderDetails"] {
-    background-color: {{BTN_SURFACE}} !important;
-    background-image: none !important;
-    color: {{BTN_TEXT}} !important;
-}
-.block-container [data-testid="stExpanderDetails"] [class*="st-emotion-cache"] {
-    background-color: {{BTN_SURFACE}} !important;
-}
-.block-container [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p,
-.block-container [data-testid="stExpander"] [data-testid="stMarkdownContainer"] span,
-.block-container [data-testid="stExpander"] > div > div:first-child p,
-.block-container [data-testid="stExpander"] > div > div:first-child span,
-.block-container [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] p {
-    color: {{BTN_TEXT}} !important;
-    -webkit-text-fill-color: {{BTN_TEXT}} !important;
-}
-.block-container [data-testid="stExpanderDetails"] p,
-.block-container [data-testid="stExpanderDetails"] span,
-.block-container [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] p,
-.block-container [data-testid="stExpanderDetails"] code {
-    color: {{BTN_TEXT}} !important;
-    -webkit-text-fill-color: {{BTN_TEXT}} !important;
-}
-.block-container [data-testid="stExpander"] [data-testid="stCaptionContainer"] p,
-.block-container [data-testid="stExpanderDetails"] [data-testid="stCaptionContainer"] p {
-    color: var(--muted) !important;
-    -webkit-text-fill-color: var(--muted) !important;
-}
-.block-container [data-testid="stExpanderIconSpinner"] svg,
-.block-container [data-testid="stExpanderIconCheck"] svg,
-.block-container [data-testid="stExpanderIconError"] svg {
-    color: var(--accent) !important;
-    fill: var(--accent) !important;
-}
-
-/* FAQ — borde fino + tipografía coherente */
-.block-container:has(.omni-faq-marker) [data-testid="stExpander"] {
-    border: 1px solid {{BTN_BORDER}} !important;
-    box-shadow: var(--shadow-sm) !important;
-    background-color: {{BTN_SURFACE}} !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child,
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [class*="st-emotion-cache"] {
-    background-color: {{BTN_SURFACE}} !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    color: {{BTN_TEXT}} !important;
+    border: none !important;
+    border-bottom: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
 }
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"],
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] p,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] span,
 .block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child p,
-.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child span,
-.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] p {
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child span {
     font-family: var(--font) !important;
     font-weight: var(--weight-semibold) !important;
     font-size: var(--text-sm) !important;
     letter-spacing: var(--tracking-ui) !important;
     color: {{BTN_TEXT}} !important;
     -webkit-text-fill-color: {{BTN_TEXT}} !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child svg,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [data-testid="stIconMaterial"] {
+    font-family: "Material Symbols Rounded", "Material Icons" !important;
+    flex-shrink: 0 !important;
+    font-size: 1.125rem !important;
+    line-height: 1 !important;
+    opacity: 0.45 !important;
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
 }
 .block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"],
 .block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] [class*="st-emotion-cache"] {
-    background-color: {{BTN_SURFACE}} !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+}
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] p,
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] span,
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] p,
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] code {
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] [data-testid="stCaptionContainer"] p,
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] [data-testid="stCaptionContainer"] p {
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
 }
 
-/* Progreso — tipografía coherente */
+/* Progreso — solo texto + barra, sin caja */
+.stProgress,
+.stProgress > div {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    position: relative !important;
+    z-index: 5 !important;
+}
+.stProgress {
+    margin-top: 0.75rem !important;
+}
+.stProgress > div:first-child {
+    position: relative !important;
+    z-index: 6 !important;
+    overflow: visible !important;
+    min-height: 1.3rem !important;
+    margin-bottom: 0.35rem !important;
+    padding-bottom: 0.15rem !important;
+    background: var(--bg) !important;
+}
 .stProgress label,
 .stProgress [data-testid="stProgressLabel"],
+.stProgress [data-testid="stProgressLabel"] > div,
 .stProgress [data-testid="stProgressLabel"] p,
+.stProgress > div:first-child,
+.stProgress > div:first-child [data-testid="stMarkdownContainer"],
+.stProgress > div:first-child [data-testid="stMarkdownContainer"] p,
+.stProgress > div:first-child [data-testid="stMarkdownContainer"] span,
+.stProgress > div:first-child p,
+.stProgress > div:first-child span,
 .stProgress [data-testid="stMarkdownContainer"] p {
     font-family: var(--font) !important;
     font-size: var(--text-sm) !important;
@@ -1952,20 +2076,258 @@ div[data-testid="stElementContainer"]:has(.fuente-picker-marker)
     letter-spacing: var(--tracking-ui) !important;
     color: {{BTN_TEXT}} !important;
     -webkit-text-fill-color: {{BTN_TEXT}} !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 0 0.4rem 0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    line-height: 1.45 !important;
+}
+.stProgress > div:first-child > div,
+.stProgress > div:first-child [data-testid="stMarkdownContainer"],
+.stProgress > div:first-child [data-testid="stMarkdownContainer"] > div {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+}
+.stProgress > div:last-child {
+    height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+}
+.stProgress [data-testid="stProgressBarTrack"] {
+    background: var(--surface-2) !important;
+    border: none !important;
+    border-radius: 999px !important;
+    overflow: hidden !important;
+    height: 4px !important;
+}
+.stProgress [data-testid="stProgressBarTrack"] > div {
+    background: var(--accent) !important;
+    height: 100% !important;
+    border-radius: 999px !important;
+}
+[data-testid="stElementContainer"]:has(.stProgress),
+[data-testid="stElementContainer"]:has([data-testid="stProgress"]) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0.85rem 0 0.15rem !important;
+    margin-top: 0.35rem !important;
+    overflow: visible !important;
+    position: relative !important;
+    z-index: 5 !important;
+}
+.block-container .st-key-btn_convertir {
+    margin-bottom: 0.15rem !important;
 }
 
-div[data-testid="stElementContainer"]:has(.split-dl-marker)
-    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button::before {
-    border-top-color: {{BTN_TEXT}} !important;
+/* Export grid — Word/PDF: mismo botón secundario que el resto de tarjetas */
+.export-grid [data-testid="column"] .stDownloadButton button,
+.export-grid [data-testid="column"] .stDownloadButton [data-baseweb="button"],
+.export-grid [data-testid="column"] .stDownloadButton button[data-testid="stBaseButton-primary"],
+.export-grid [data-testid="column"] .stDownloadButton button[kind="primary"] {
+    background-color: {{BTN_SURFACE}} !important;
+    background-image: none !important;
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+    border: 1px solid {{BTN_BORDER}} !important;
+    box-shadow: none !important;
 }
-[data-testid="stPopoverBody"] button {
-    font-size: var(--btn-font) !important;
+.export-grid [data-testid="column"] .stDownloadButton button:hover,
+.export-grid [data-testid="column"] .stDownloadButton [data-baseweb="button"]:hover {
+    background-color: var(--surface-2) !important;
+    border-color: var(--accent) !important;
+    box-shadow: var(--btn-hover-glow) !important;
+}
+/* Selectbox — global (export-grid no envuelve widgets en el DOM de Streamlit) */
+[data-testid="stSelectbox"] div[data-baseweb="select"],
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"],
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div > div,
+[data-testid="stSelectbox"] div[data-baseweb="select"] [data-baseweb="input"],
+[data-testid="stSelectbox"] [class*="st-emotion-cache"] {
+    background-color: {{BTN_SURFACE}} !important;
+    background-image: none !important;
+    border-color: {{BTN_BORDER}} !important;
     color: {{BTN_TEXT}} !important;
 }
-[data-testid="stPopoverBody"] button * {
-    display: inline !important;
+[data-testid="stSelectbox"] div[data-baseweb="select"] span,
+[data-testid="stSelectbox"] div[data-baseweb="select"] p,
+[data-testid="stSelectbox"] div[data-baseweb="select"] input,
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"] > div {
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"] {
+    border: 1px solid {{BTN_BORDER}} !important;
+    border-radius: var(--btn-radius) !important;
+    min-height: 2.35rem !important;
+    background-color: {{BTN_SURFACE}} !important;
+}
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"]:focus-within,
+[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"][aria-expanded="true"] {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px var(--accent-soft) !important;
+    background-color: {{BTN_SURFACE}} !important;
+}
+
+/* Selectbox — menú desplegable (portal en body, light/dark) */
+div[data-baseweb="popover"] > div,
+[data-baseweb="popover"] > div {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+div[data-baseweb="popover"],
+[data-baseweb="popover"] {
+    background-color: {{BTN_SURFACE}} !important;
+    background-image: none !important;
+}
+[data-baseweb="popover"] [data-baseweb="menu"],
+[data-baseweb="popover"] ul[role="listbox"],
+div[data-baseweb="popover"] [role="listbox"],
+[data-baseweb="popover"] [data-testid="stSelectboxVirtualDropdown"],
+[data-baseweb="popover"] [data-baseweb="popover"] {
+    background-color: {{BTN_SURFACE}} !important;
+    background-image: none !important;
+    border: 1px solid {{BTN_BORDER}} !important;
+    box-shadow: var(--shadow-md) !important;
+}
+[data-baseweb="popover"] li,
+[data-baseweb="popover"] [role="option"],
+[data-baseweb="popover"] ul li {
+    background-color: {{BTN_SURFACE}} !important;
+    background-image: none !important;
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+    font-family: var(--font) !important;
+    font-size: 0.8125rem !important;
+}
+[data-baseweb="popover"] li:hover,
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="popover"] [aria-selected="true"],
+[data-baseweb="popover"] li[aria-selected="true"],
+[data-baseweb="popover"] [data-highlighted="true"],
+[data-baseweb="popover"] li[data-highlighted="true"] {
+    background-color: var(--highlight-soft) !important;
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
+[data-baseweb="popover"] li *,
+[data-baseweb="popover"] [role="option"] * {
     color: inherit !important;
-    font-size: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    background: transparent !important;
+}
+
+.block-container .export-format-legend {
+    background-color: {{BTN_SURFACE}} !important;
+    border: 1px solid var(--border) !important;
+    color: var(--muted) !important;
+}
+.block-container .export-format-legend p,
+.block-container .export-format-legend strong {
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
+.block-container .review-summary,
+.block-container [data-testid="stMarkdownContainer"] .review-summary,
+.block-container p.review-summary {
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    line-height: 1.35 !important;
+}
+
+/* Modal API — input password (Streamlit 1.58: ojo dentro de base-input, a la derecha) */
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] {
+    display: flex !important;
+    align-items: stretch !important;
+    background-color: {{INPUT_BG}} !important;
+    background-image: none !important;
+    border: 1px solid {{BTN_BORDER}} !important;
+    border-radius: var(--radius) !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] > div[data-baseweb="base-input"],
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] > div {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+    min-height: 2.625rem !important;
+    height: auto !important;
+    padding-left: 0.85rem !important;
+    padding-right: 0.35rem !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] input::placeholder {
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
+    opacity: 1 !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] button[type="button"] {
+    flex: 0 0 2.75rem !important;
+    width: 2.75rem !important;
+    min-width: 2.75rem !important;
+    height: auto !important;
+    align-self: stretch !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-left: 1px solid {{BTN_BORDER}} !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    order: 99 !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"] button[type="button"] svg {
+    width: 1.125rem !important;
+    height: 1.125rem !important;
+    flex-shrink: 0 !important;
+    display: block !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stIconMaterial"],
+[data-testid="stDialog"] [data-testid="stTextInput"] button [data-testid="stIconMaterial"] {
+    font-family: "Material Symbols Rounded", "Material Icons" !important;
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
+}
+[data-testid="stDialog"] [data-testid="stTextInput"] [data-testid="stTextInputRootElement"]:focus-within {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-glow-soft) !important;
 }
 
 /* Scroll — rueda del ratón en toda la ventana */
