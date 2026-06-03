@@ -6,6 +6,8 @@ import tempfile
 import zipfile
 from io import BytesIO
 
+from .daypo import completar_imagenes_tests
+
 import genanki
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -321,6 +323,8 @@ def generar_apkg_anki(tests: list[dict]) -> bytes:
 
 def construir_resultado(tests: list[dict], errores: list[str] | None = None) -> dict:
     """Genera todos los exportables y los empaqueta para session_state."""
+    if any(t.get("id_test") for t in tests):
+        completar_imagenes_tests(tests)
     nb = generar_nombre_base(tests)
     es_multi = len(tests) > 1
     return {

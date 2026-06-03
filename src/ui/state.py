@@ -18,6 +18,7 @@ def init_estado() -> None:
         ("ia_pid_usado", ""),
         ("daypo_tests", None),
         ("daypo_errores", []),
+        ("daypo_aviso_imagenes", ""),
         ("error_inline", ""),
         ("banner_429", False),
         ("tema", "dark"),               # dark | light
@@ -42,6 +43,7 @@ def ir_a_entrada() -> None:
     st.session_state["ia_chat"] = []
     st.session_state["daypo_tests"] = None
     st.session_state["daypo_errores"] = []
+    st.session_state["daypo_aviso_imagenes"] = ""
     st.session_state["error_inline"] = ""
     st.session_state["banner_429"] = False
     st.session_state["ia_procesado_con"] = ""

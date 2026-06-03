@@ -1,10 +1,11 @@
 """Single-page Omnitest — flujo iLovePDF en Streamlit."""
+import base64
 import html as html_lib
 
 import requests
 import streamlit as st
 
-from ..daypo import extraer_enlaces_daypo, extraer_test
+from ..daypo import completar_imagenes_tests, extraer_enlaces_daypo, extraer_test
 from ..exporters import construir_resultado
 from ..ai_providers import (
     aplicar_correccion_con_fallback,
@@ -73,6 +74,21 @@ def _procesar_daypo(texto: str, progress, status) -> bool:
 
     progress.progress(0.95)
     status.write("Validando estructura…")
+
+    img_esperadas = sum(t.get("imagenes_esperadas", 0) for t in tests)
+    img_ok = sum(t.get("imagenes_ok", 0) for t in tests)
+    if img_esperadas and img_ok < img_esperadas:
+        status.write(f"Reintentando imágenes ({img_ok}/{img_esperadas})…")
+        img_ok, img_esperadas = completar_imagenes_tests(tests)
+    if img_esperadas:
+        status.write(f"Imágenes: {img_ok}/{img_esperadas} descargadas")
+        if img_ok < img_esperadas:
+            st.session_state["daypo_aviso_imagenes"] = (
+                f"Solo se pudieron descargar {img_ok} de {img_esperadas} imágenes. "
+                "El test puede usar imágenes protegidas o enlaces de otro dominio Daypo."
+            )
+    else:
+        st.session_state.pop("daypo_aviso_imagenes", None)
 
     if not tests:
         st.session_state["error_inline"] = "No se pudo extraer ningún test de esos enlaces."
@@ -285,11 +301,14 @@ def _preguntas_preview_daypo() -> list[dict]:
         for p in test.get("preguntas", []):
             correcta = next((o[0] for o in p["opciones"] if o[1]), "")
             incorrectas = [o[0] for o in p["opciones"] if not o[1]]
-            out.append({
+            item = {
                 "enunciado": p["enunciado"],
                 "correcta": correcta,
                 "incorrectas": incorrectas,
-            })
+            }
+            if p.get("img_bytes"):
+                item["img_b64"] = base64.b64encode(p["img_bytes"]).decode("ascii")
+            out.append(item)
     return out
 
 
@@ -307,6 +326,8 @@ def _render_revision() -> None:
     n = len(preguntas)
     st.markdown(f'<p class="review-summary">{n} preguntas listas</p>', unsafe_allow_html=True)
     st.caption(titulo)
+    if fuente == "daypo" and st.session_state.get("daypo_aviso_imagenes"):
+        st.warning(st.session_state["daypo_aviso_imagenes"])
     if st.session_state.get("ia_procesado_con"):
         st.markdown(
             f'<span class="model-badge">Procesado con {html_lib.escape(st.session_state["ia_procesado_con"])}</span>',
@@ -317,6 +338,11 @@ def _render_revision() -> None:
     for i, p in enumerate(preguntas, 1):
         enc = html_lib.escape(p["enunciado"])
         html_parts.append(f'<div class="preview-q"><strong>{i}. {enc}</strong>')
+        if p.get("img_b64"):
+            html_parts.append(
+                f'<br><img class="preview-img" '
+                f'src="data:image/jpeg;base64,{p["img_b64"]}" alt="">'
+            )
         for inc in p.get("incorrectas", []):
             html_parts.append(
                 f'<br><span class="preview-wrong">× {html_lib.escape(str(inc))}</span>'

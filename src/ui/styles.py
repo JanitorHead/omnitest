@@ -623,6 +623,13 @@ div.stDownloadButton > button:hover {
 .preview-q:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .preview-wrong { color: var(--muted); font-size: 0.8125rem; }
 .preview-ok { color: var(--accent); font-size: 0.8125rem; }
+.preview-img {
+    display: block;
+    max-width: min(100%, 320px);
+    max-height: 200px;
+    margin-top: 0.45rem;
+    border-radius: 6px;
+}
 
 .export-grid {
     margin-top: 0.5rem;
