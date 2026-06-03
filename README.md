@@ -3,7 +3,7 @@ Omnitest es una herramienta de conversión de preguntas tipo test creada para ca
 Autor: JanitorHead
 
 <p align="center">
-  <img src="static/logo.svg" alt="Omnitest" width="180">
+  <img src="static/og-image.png" alt="Omnitest" width="600">
 </p>
 
 <h1 align="center">Omnitest</h1>
@@ -135,7 +135,8 @@ Si ves un error **429** (cuota agotada), espera unos minutos o activa otra API e
 
 ```
 app.py                      Punto de entrada Streamlit
-static/logo.svg             Logo de la app
+static/logo-mark.png        Icono en la app (header / favicon)
+static/og-image.png         Preview al compartir enlace
 src/
   daypo.py                  Extracción Daypo
   ai_import.py              Llamadas Gemini (REST)

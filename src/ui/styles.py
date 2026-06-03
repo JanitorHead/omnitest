@@ -128,7 +128,7 @@ section.main,
     margin-left: 0;
 }
 .omni-logo {
-    width: 10.5rem;
+    width: 8.5rem;
     height: auto;
     max-width: 100%;
     flex-shrink: 0;
@@ -1227,7 +1227,7 @@ div[data-testid="stHorizontalBlock"]:has(.omni-wordmark)
         margin-left: 0 !important;
     }
     .omni-logo {
-        width: 10rem !important;
+        width: 8rem !important;
         height: auto !important;
     }
     .omni-hero-gap {
