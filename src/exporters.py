@@ -71,14 +71,13 @@ def generar_word_combinado(tests: list[dict], con_respuesta: bool = True) -> byt
     return buf.getvalue()
 
 
-def generar_zip_word_individuales(tests: list[dict]) -> bytes:
-    """ZIP con un .docx por test, en Con_Respuesta/ y Sin_Respuesta/."""
+def generar_zip_word_individuales(tests: list[dict], *, con_respuesta: bool) -> bytes:
+    """ZIP con un .docx por test (todos con o todos sin respuestas)."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for t in tests:
             nb = nombre_archivo(t["titulo"])
-            zf.writestr(f"Con_Respuesta/{nb}.docx", _doc_de_test(t, True))
-            zf.writestr(f"Sin_Respuesta/{nb}.docx", _doc_de_test(t, False))
+            zf.writestr(f"{nb}.docx", _doc_de_test(t, con_respuesta))
     buf.seek(0)
     return buf.getvalue()
 
@@ -147,13 +146,12 @@ def generar_pdf(tests: list[dict], con_respuesta: bool = True) -> bytes:
     return bytes(pdf.output())
 
 
-def generar_zip_pdf_individuales(tests: list[dict]) -> bytes:
+def generar_zip_pdf_individuales(tests: list[dict], *, con_respuesta: bool) -> bytes:
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for t in tests:
             nb = nombre_archivo(t["titulo"])
-            zf.writestr(f"Con_Respuesta/{nb}.pdf", generar_pdf([t], con_respuesta=True))
-            zf.writestr(f"Sin_Respuesta/{nb}.pdf", generar_pdf([t], con_respuesta=False))
+            zf.writestr(f"{nb}.pdf", generar_pdf([t], con_respuesta=con_respuesta))
     buf.seek(0)
     return buf.getvalue()
 
@@ -344,8 +342,14 @@ def construir_resultado(
     ])
     if es_multi:
         pasos.extend([
-            ("zip_word_individuales", "Generando Word por test…", lambda: generar_zip_word_individuales(tests)),
-            ("zip_pdf_individuales", "Generando PDF por test…", lambda: generar_zip_pdf_individuales(tests)),
+            ("zip_word_individuales_con", "Generando Word por test (con respuestas)…",
+             lambda: generar_zip_word_individuales(tests, con_respuesta=True)),
+            ("zip_word_individuales_sin", "Generando Word por test (sin respuestas)…",
+             lambda: generar_zip_word_individuales(tests, con_respuesta=False)),
+            ("zip_pdf_individuales_con", "Generando PDF por test (con respuestas)…",
+             lambda: generar_zip_pdf_individuales(tests, con_respuesta=True)),
+            ("zip_pdf_individuales_sin", "Generando PDF por test (sin respuestas)…",
+             lambda: generar_zip_pdf_individuales(tests, con_respuesta=False)),
         ])
     pasos.extend([
         ("zip_imagenes", "Empaquetando imágenes…", lambda: generar_zip_imagenes(tests)),
@@ -369,10 +373,12 @@ def construir_resultado(
         "es_multi": es_multi,
         "word_combinado_con": datos["word_combinado_con"],
         "word_combinado_sin": datos["word_combinado_sin"],
-        "zip_word_individuales": datos.get("zip_word_individuales", b""),
+        "zip_word_individuales_con": datos.get("zip_word_individuales_con", b""),
+        "zip_word_individuales_sin": datos.get("zip_word_individuales_sin", b""),
         "pdf_combinado_con": datos["pdf_combinado_con"],
         "pdf_combinado_sin": datos["pdf_combinado_sin"],
-        "zip_pdf_individuales": datos.get("zip_pdf_individuales", b""),
+        "zip_pdf_individuales_con": datos.get("zip_pdf_individuales_con", b""),
+        "zip_pdf_individuales_sin": datos.get("zip_pdf_individuales_sin", b""),
         "zip_imagenes": datos["zip_imagenes"],
         "zip_remnote": datos["zip_remnote"],
         "apkg_anki": datos["apkg_anki"],

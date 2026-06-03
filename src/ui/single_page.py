@@ -25,6 +25,7 @@ from .theme_toggle import render_theme_toggle
 from .fuente_toggle import render_fuente_toggle
 from .upload_zone import or_divider_html
 from .faq import render_faq
+from .work_log import work_log
 
 
 def _render_header() -> None:
@@ -324,7 +325,7 @@ def _render_entrada() -> None:
     ):
         st.session_state["error_inline"] = ""
         progress = st.progress(0, text="Procesando…")
-        with st.status("Trabajando…", expanded=True) as status_box:
+        with work_log("Trabajando…") as status_box:
             ok = False
             if fuente == "daypo":
                 ok = _procesar_daypo(texto_daypo, progress, status_box)

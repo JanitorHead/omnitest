@@ -28,10 +28,12 @@ def _variantes_word_pdf(
     *,
     combinado_con: str,
     combinado_sin: str,
-    zip_key: str,
+    zip_con: str,
+    zip_sin: str,
     fname_con: str,
     fname_sin: str,
-    fname_zip: str,
+    fname_zip_con: str,
+    fname_zip_sin: str,
     mime: str,
 ) -> list[dict[str, Any]]:
     variantes = [
@@ -48,14 +50,22 @@ def _variantes_word_pdf(
             "mime": mime,
         },
     ]
-    if es_multi and res.get(zip_key):
-        variantes.append({
-            "label": "Por test (ZIP) · con y sin respuestas",
-            "key": zip_key,
-            "fname": fname_zip,
-            "mime": MIME_ZIP,
-        })
-    return variantes
+    if es_multi:
+        variantes.extend([
+            {
+                "label": "Un archivo por test · con respuestas",
+                "key": zip_con,
+                "fname": fname_zip_con,
+                "mime": MIME_ZIP,
+            },
+            {
+                "label": "Un archivo por test · sin respuestas",
+                "key": zip_sin,
+                "fname": fname_zip_sin,
+                "mime": MIME_ZIP,
+            },
+        ])
+    return [v for v in variantes if res.get(v["key"])]
 
 
 def _render_split_download(
@@ -67,6 +77,8 @@ def _render_split_download(
     res: dict,
 ) -> None:
     if not variantes:
+        st.markdown(_tarjeta_export(icon_id, nombre, desc), unsafe_allow_html=True)
+        st.caption("No disponible para este conjunto de tests.")
         return
 
     opt_key = f"export_opt_{card_id}"
@@ -75,17 +87,14 @@ def _render_split_download(
     idx = min(st.session_state[opt_key], len(variantes) - 1)
     actual = variantes[idx]
     data = res.get(actual["key"]) or b""
-    if not data:
-        st.markdown(_tarjeta_export(icon_id, nombre, desc), unsafe_allow_html=True)
-        st.caption("No disponible para este conjunto de tests.")
-        return
 
     st.markdown(_tarjeta_export(icon_id, nombre, desc), unsafe_allow_html=True)
     st.markdown(
         f'<p class="split-dl-current">{html_lib.escape(actual["label"])}</p>',
         unsafe_allow_html=True,
     )
-    st.markdown('<div class="split-download-wrap">', unsafe_allow_html=True)
+    st.markdown(f'<div class="split-dl-marker" data-card="{card_id}"></div>', unsafe_allow_html=True)
+
     c_main, c_menu = st.columns([6, 1], gap="small")
     with c_main:
         st.download_button(
@@ -95,10 +104,16 @@ def _render_split_download(
             mime=actual["mime"],
             use_container_width=True,
             key=f"dl_{card_id}_{idx}",
+            type="primary",
         )
     with c_menu:
-        with st.popover("▾", use_container_width=True):
-            st.markdown("**Opciones**")
+        with st.popover(
+            " ",
+            help="Formato y respuestas",
+            type="secondary",
+            use_container_width=True,
+            key=f"pop_{card_id}",
+        ):
             for i, var in enumerate(variantes):
                 pref = "✓ " if i == idx else ""
                 if st.button(
@@ -109,7 +124,6 @@ def _render_split_download(
                 ):
                     st.session_state[opt_key] = i
                     st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_simple_download(
@@ -160,10 +174,12 @@ def render_export() -> None:
         es_multi,
         combinado_con="word_combinado_con",
         combinado_sin="word_combinado_sin",
-        zip_key="zip_word_individuales",
+        zip_con="zip_word_individuales_con",
+        zip_sin="zip_word_individuales_sin",
         fname_con=f"{nb}_Word_con.docx",
         fname_sin=f"{nb}_Word_sin.docx",
-        fname_zip=f"{nb}_Word_individual.zip",
+        fname_zip_con=f"{nb}_Word_por_test_con.zip",
+        fname_zip_sin=f"{nb}_Word_por_test_sin.zip",
         mime=MIME_WORD,
     )
     pdf_vars = _variantes_word_pdf(
@@ -172,10 +188,12 @@ def render_export() -> None:
         es_multi,
         combinado_con="pdf_combinado_con",
         combinado_sin="pdf_combinado_sin",
-        zip_key="zip_pdf_individuales",
+        zip_con="zip_pdf_individuales_con",
+        zip_sin="zip_pdf_individuales_sin",
         fname_con=f"{nb}_con.pdf",
         fname_sin=f"{nb}_sin.pdf",
-        fname_zip=f"{nb}_PDF_individual.zip",
+        fname_zip_con=f"{nb}_PDF_por_test_con.zip",
+        fname_zip_sin=f"{nb}_PDF_por_test_sin.zip",
         mime=MIME_PDF,
     )
 

@@ -78,11 +78,14 @@ section[data-testid="stSidebar"] { display: none; }
     overflow-x: hidden !important;
 }
 
-/* Sin scroll horizontal fantasma (móvil / Streamlit gutters) */
+/* Scroll — toda la ventana (no solo la columna central) */
 html, body {
     overflow-x: hidden !important;
+    overflow-y: auto !important;
     max-width: 100% !important;
     width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
 }
 .stApp,
 [data-testid="stAppViewContainer"],
@@ -90,8 +93,16 @@ html, body {
 section.main,
 .main {
     overflow-x: hidden !important;
+    overflow-y: visible !important;
     max-width: 100% !important;
     width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+}
+[data-testid="stAppViewContainer"] > section,
+[data-testid="stMainBlockContainer"] {
+    overflow: visible !important;
+    height: auto !important;
 }
 .block-container [data-testid="stHorizontalBlock"],
 .block-container [data-testid="stVerticalBlock"],
@@ -400,51 +411,54 @@ section.main,
     margin: 2.25rem 0 1.5rem;
     opacity: 0.72;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) {
+.block-container:has(.omni-faq-marker) {
     max-width: 680px;
     margin-left: auto !important;
     margin-right: auto !important;
     padding-bottom: 3.5rem;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] {
-    border: 1px solid var(--border) !important;
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] {
+    border: 1px solid var(--border-strong) !important;
     border-radius: 12px !important;
     background: var(--surface) !important;
     box-shadow: var(--shadow-sm) !important;
     margin-bottom: 0.75rem !important;
     transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease) !important;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"]:hover {
-    border-color: var(--border-strong) !important;
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"]:hover {
+    border-color: var(--accent) !important;
     box-shadow: var(--shadow-md) !important;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] summary {
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child {
     font-weight: 600 !important;
     font-size: 0.9375rem !important;
     color: var(--text) !important;
     padding: 1.2rem 1.4rem !important;
     min-height: 3.75rem;
     opacity: 0.88;
+    background: var(--surface) !important;
+    border-bottom: none !important;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] summary:hover {
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child:hover {
     opacity: 1;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] summary svg {
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child svg {
     opacity: 0.4 !important;
     width: 1rem !important;
     height: 1rem !important;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] > div {
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] {
     padding: 0 1.4rem 1.4rem !important;
+    background: var(--surface) !important;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] [data-testid="stMarkdownContainer"] p,
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] [data-testid="stMarkdownContainer"] li,
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] [data-testid="stMarkdownContainer"] td {
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] [data-testid="stMarkdownContainer"] li,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] [data-testid="stMarkdownContainer"] td {
     color: var(--muted) !important;
     font-size: 0.875rem !important;
     line-height: 1.65 !important;
 }
-[data-testid="stVerticalBlock"]:has(.omni-faq-marker) details[data-testid="stExpander"] [data-testid="stMarkdownContainer"] strong {
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] [data-testid="stMarkdownContainer"] strong {
     color: var(--text) !important;
     font-weight: 600 !important;
 }
@@ -612,24 +626,81 @@ div.stDownloadButton > button:hover {
     font-size: var(--text-sm) !important;
 }
 
-/* Status / log de incidencias */
-[data-testid="stStatusWidget"] {
-    background: var(--surface) !important;
-    border: 1px solid {{PANEL_BORDER}} !important;
+/* st.status / st.expander — ver inject_button_fixes() (Streamlit 1.58 → stExpander) */
+
+/* Panel de trabajo — HTML propio (sin st.container / st.status) */
+.omni-worklog-panel {
+    margin-top: 0.65rem;
+    padding: 0.85rem 1.15rem 1rem;
+    background-color: var(--surface) !important;
+    background-image: none !important;
+    border: 1px solid var(--border-strong) !important;
     border-radius: var(--radius-lg) !important;
     box-shadow: var(--shadow-sm) !important;
-}
-[data-testid="stStatusWidget"] > div {
-    background: transparent !important;
-}
-[data-testid="stStatusWidget"] label,
-[data-testid="stStatusWidget"] p,
-[data-testid="stStatusWidget"] span,
-[data-testid="stStatusWidget"] [data-testid="stMarkdownContainer"] p {
     color: var(--text) !important;
 }
-[data-testid="stStatusWidget"] [data-testid="stCaptionContainer"] p {
+.omni-worklog-header {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin: 0 0 0.35rem;
+    padding: 0.1rem 0;
+    background: transparent !important;
+    color: var(--text) !important;
+}
+.omni-worklog-title {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--text) !important;
+    -webkit-text-fill-color: var(--text) !important;
+    letter-spacing: var(--tracking-ui);
+}
+.omni-worklog-body {
+    margin: 0.25rem 0 0.35rem;
+}
+.omni-worklog-line {
+    margin: 0.2rem 0;
+    font-size: var(--text-sm);
+    color: var(--text) !important;
+    line-height: 1.45;
+}
+.omni-worklog-foot {
+    margin: 0.35rem 0 0;
+    font-size: var(--text-xs);
     color: var(--muted) !important;
+    line-height: 1.45;
+}
+.omni-worklog-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: omni-worklog-spin 0.75s linear infinite;
+}
+@keyframes omni-worklog-spin {
+    to { transform: rotate(360deg); }
+}
+.omni-worklog-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 999px;
+}
+.omni-worklog-icon--ok {
+    color: #16A34A;
+    background: rgba(34, 197, 94, 0.15);
+}
+.omni-worklog-icon--err {
+    color: var(--error);
+    background: rgba(220, 38, 38, 0.12);
 }
 
 .split-dl-current {
@@ -638,34 +709,88 @@ div.stDownloadButton > button:hover {
     color: var(--muted);
     line-height: 1.35;
 }
-.split-download-wrap [data-testid="stHorizontalBlock"] {
+.split-dl-marker { display: none; }
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] {
     gap: 0 !important;
     align-items: stretch !important;
+    margin-top: 0 !important;
 }
-.split-download-wrap [data-testid="column"]:first-child .stDownloadButton button,
-.split-download-wrap [data-testid="column"]:first-child button {
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:first-child .stDownloadButton button,
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:first-child button {
     border-top-right-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
     border-right: none !important;
 }
-.split-download-wrap [data-testid="column"]:last-child button,
-.split-download-wrap [data-testid="column"]:last-child [data-testid="stPopover"] button {
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child button,
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-baseweb="button"],
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button {
     border-top-left-radius: 0 !important;
     border-bottom-left-radius: 0 !important;
-    min-width: 42px !important;
-    max-width: 42px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    width: 44px !important;
+    min-height: var(--btn-height) !important;
     padding: 0 !important;
     background: var(--surface) !important;
-    color: var(--text) !important;
+    color: transparent !important;
     border: 1px solid var(--border-strong) !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
-.split-download-wrap [data-testid="column"]:last-child button:hover {
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child button *,
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-baseweb="button"] *,
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button * {
+    display: none !important;
+}
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child button::before,
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-baseweb="button"]::before,
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button::before {
+    content: "" !important;
+    display: block !important;
+    width: 0 !important;
+    height: 0 !important;
+    border-left: 5px solid transparent !important;
+    border-right: 5px solid transparent !important;
+    border-top: 6px solid var(--text) !important;
+    margin: 0 auto !important;
+}
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child button:hover,
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button:hover {
     background: var(--highlight-soft) !important;
     border-color: var(--accent) !important;
 }
+.export-grid div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:first-child .stDownloadButton button {
+    background: var(--accent) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    box-shadow: 0 2px 10px var(--accent-glow) !important;
+}
+.export-grid div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:first-child .stDownloadButton button:hover {
+    background: var(--accent-hover) !important;
+}
 [data-testid="stPopoverBody"] {
     background: var(--surface) !important;
-    border: 1px solid {{PANEL_BORDER}} !important;
+    border: 1px solid var(--border-strong) !important;
     border-radius: var(--radius) !important;
     box-shadow: var(--shadow-md) !important;
 }
@@ -831,14 +956,17 @@ div.stDownloadButton > button:hover {
 div[data-testid="stRadio"] label {
     transition: color 0.15s var(--ease) !important;
 }
-details[data-testid="stExpander"] {
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
+[data-testid="stExpander"] {
+    border: 1px solid var(--border-strong) !important;
+    border-radius: var(--radius-lg) !important;
     background: var(--surface) !important;
-    transition: box-shadow 0.2s var(--ease) !important;
-}
-details[data-testid="stExpander"]:hover {
     box-shadow: var(--shadow-sm) !important;
+    overflow: hidden !important;
+    transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease) !important;
+}
+[data-testid="stExpander"]:hover {
+    border-color: var(--omni-panel-hover-border) !important;
+    box-shadow: var(--shadow-md) !important;
 }
 
 .stCaption,
@@ -1600,6 +1728,155 @@ div[data-testid="stElementContainer"]:has(.fuente-picker-marker)
     [data-testid="stHorizontalBlock"]:has(.st-key-fuente_daypo):has(.st-key-fuente_ia) .stButton > button:hover {
     background-color: var(--highlight-soft) !important;
     color: var(--text) !important;
+}
+
+/* Panel Daypo — textarea con borde visible (light/dark) */
+.block-container [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextArea"] > div,
+.block-container [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextArea"] [data-baseweb="base-input"],
+.block-container [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextArea"] textarea,
+.block-container [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stTextArea"] div[data-baseweb="textarea"] {
+    background-color: {{INPUT_BG}} !important;
+    color: {{BTN_TEXT}} !important;
+    border: 1px solid {{PANEL_BORDER}} !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+/* Panel Trabajando / log — borde visible en light */
+.block-container .omni-worklog-panel {
+    background-color: {{BTN_SURFACE}} !important;
+    border: 1px solid {{PANEL_BORDER}} !important;
+    box-shadow: 0 0 0 1px {{PANEL_BORDER_SOFT}}, var(--shadow-sm) !important;
+    color: {{BTN_TEXT}} !important;
+}
+.block-container .omni-worklog-title,
+.block-container .omni-worklog-line {
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
+.block-container .omni-worklog-foot {
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
+}
+.block-container [data-testid="stElementContainer"]:has(.omni-worklog-panel),
+.block-container [data-testid="stElementContainer"]:has(.omni-worklog-panel) > div,
+.block-container [data-testid="stElementContainer"]:has(.omni-worklog-panel) [data-testid="stMarkdownContainer"],
+.block-container [data-testid="stElementContainer"]:has(.omni-worklog-panel) [class*="st-emotion-cache"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+/* st.status → stExpander (Streamlit 1.58) — anular Emotion inline */
+.block-container [data-testid="stExpander"],
+.block-container .stExpander {
+    background-color: {{BTN_SURFACE}} !important;
+    background-image: none !important;
+    border: 1px solid {{PANEL_BORDER}} !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: 0 0 0 1px {{PANEL_BORDER_SOFT}}, var(--shadow-sm) !important;
+    overflow: hidden !important;
+}
+.block-container [data-testid="stExpander"] > div {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+.block-container [data-testid="stExpander"] > div > div:first-child {
+    background-color: {{TRACK_BG}} !important;
+    background-image: none !important;
+    color: {{BTN_TEXT}} !important;
+    border-bottom: 1px solid {{TRACK_BORDER}} !important;
+}
+.block-container [data-testid="stExpander"] [class*="st-emotion-cache"] {
+    background-image: none !important;
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
+.block-container [data-testid="stExpander"] > div > div:first-child [class*="st-emotion-cache"] {
+    background-color: {{TRACK_BG}} !important;
+}
+.block-container [data-testid="stExpanderDetails"] {
+    background-color: {{BTN_SURFACE}} !important;
+    background-image: none !important;
+    color: {{BTN_TEXT}} !important;
+}
+.block-container [data-testid="stExpanderDetails"] [class*="st-emotion-cache"] {
+    background-color: {{BTN_SURFACE}} !important;
+}
+.block-container [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p,
+.block-container [data-testid="stExpander"] [data-testid="stMarkdownContainer"] span,
+.block-container [data-testid="stExpander"] > div > div:first-child p,
+.block-container [data-testid="stExpander"] > div > div:first-child span,
+.block-container [data-testid="stExpander"] > div > div:first-child [data-testid="stMarkdownContainer"] p {
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
+.block-container [data-testid="stExpanderDetails"] p,
+.block-container [data-testid="stExpanderDetails"] span,
+.block-container [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] p,
+.block-container [data-testid="stExpanderDetails"] code {
+    color: {{BTN_TEXT}} !important;
+    -webkit-text-fill-color: {{BTN_TEXT}} !important;
+}
+.block-container [data-testid="stExpander"] [data-testid="stCaptionContainer"] p,
+.block-container [data-testid="stExpanderDetails"] [data-testid="stCaptionContainer"] p {
+    color: var(--muted) !important;
+    -webkit-text-fill-color: var(--muted) !important;
+}
+.block-container [data-testid="stExpanderIconSpinner"] svg,
+.block-container [data-testid="stExpanderIconCheck"] svg,
+.block-container [data-testid="stExpanderIconError"] svg {
+    color: var(--accent) !important;
+    fill: var(--accent) !important;
+}
+
+/* FAQ — bordes visibles en light (refuerzo final) */
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] {
+    border: 1px solid {{PANEL_BORDER}} !important;
+    box-shadow: 0 0 0 1px {{PANEL_BORDER_SOFT}}, var(--shadow-sm) !important;
+    background-color: {{BTN_SURFACE}} !important;
+}
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child,
+.block-container:has(.omni-faq-marker) [data-testid="stExpander"] > div > div:first-child [class*="st-emotion-cache"] {
+    background-color: {{BTN_SURFACE}} !important;
+}
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"],
+.block-container:has(.omni-faq-marker) [data-testid="stExpanderDetails"] [class*="st-emotion-cache"] {
+    background-color: {{BTN_SURFACE}} !important;
+}
+
+div[data-testid="stElementContainer"]:has(.split-dl-marker)
+    + div[data-testid="stElementContainer"] [data-testid="column"]:last-child [data-testid="stPopover"] button::before {
+    border-top-color: {{BTN_TEXT}} !important;
+}
+[data-testid="stPopoverBody"] button {
+    font-size: var(--btn-font) !important;
+    color: {{BTN_TEXT}} !important;
+}
+[data-testid="stPopoverBody"] button * {
+    display: inline !important;
+    color: inherit !important;
+    font-size: inherit !important;
+}
+
+/* Scroll — rueda del ratón en toda la ventana */
+html, body {
+    overflow-y: auto !important;
+    height: auto !important;
+}
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+section.main,
+.main {
+    overflow-y: visible !important;
+    height: auto !important;
+    min-height: 100vh !important;
+}
+[data-testid="stAppViewContainer"] > section {
+    overflow: visible !important;
 }
 
 /* Radios — override final (pantalla exportar, etc.) */
