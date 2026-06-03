@@ -133,6 +133,7 @@ section.main,
     max-width: 100%;
     flex-shrink: 0;
     display: block;
+    border-radius: 14px;
 }
 
 /* Panel omnitest — misma estética que el dropzone de archivos */
