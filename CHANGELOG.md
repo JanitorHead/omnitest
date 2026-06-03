@@ -13,7 +13,7 @@ Iteración de pulido UI tras **1.0.1**: progreso legible, exportación Word/PDF 
 
 - Leyenda bajo la rejilla de exportación explicando **Unificados**, **Separados** (un ZIP con un documento por test) y **con/sin respuestas**.
 - Etiquetas de progreso con **mensaje + % + ETA** en extracción IA y en barras de preview/export.
-- Desarrollo local: Streamlit en `localhost` con tema oscuro por defecto en `config.toml`.
+- Tema oscuro nativo de Streamlit en `config.toml` (coherente con el toggle de la app).
 
 ### Cambiado
 
@@ -30,11 +30,12 @@ Iteración de pulido UI tras **1.0.1**: progreso legible, exportación Word/PDF 
 - **Icono ojo** del password: alineado a la **derecha** dentro del cuadro, sin tapar el texto (estructura `base-input` interna).
 - **FAQ expanders**: bordes duplicados y «mordisco» en esquinas; ahora un solo borde como el resto de paneles.
 - Preview/revisión: resumen de preguntas legible tras corregir estilos de progreso compartidos.
+- **Streamlit Cloud**: `address = localhost` en `config.toml` impedía el arranque en producción.
 
 ### Notas
 
 - El toggle claro/oscuro de la app sigue mandando sobre los colores finos vía CSS inyectado; el tema nativo de Streamlit en `config.toml` evita widgets blancos por defecto en dark.
-- Para probar en local: `streamlit run app.py` (abre navegador en localhost).
+- Para probar en local: `streamlit run app.py`.
 
 ---
 
